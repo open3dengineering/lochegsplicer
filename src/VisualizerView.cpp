@@ -203,18 +203,19 @@ void VisualizerView::setZTranslation(double pos)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void normalizeAngle(double &angle)
+static double getNormalizeAngle(double angle)
 {
-   while (angle < 0.0)
-      angle += 360.0;
-   while (angle > 360.0)
-      angle -= 360.0;
+   double result = angle;
+   while (result < 0.0)
+      result += 360.0;
+   while (result > 360.0)
+      result -= 360.0;
+   return result;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void VisualizerView::setXRotation(double angle)
 {
-   normalizeAngle(angle);
    if (angle != mCameraRotTarget[X])
    {
       mCameraRotTarget[X] = angle;
@@ -226,7 +227,6 @@ void VisualizerView::setXRotation(double angle)
 ////////////////////////////////////////////////////////////////////////////////
 void VisualizerView::setYRotation(double angle)
 {
-   //normalizeAngle(angle);
    if (angle != mCameraRotTarget[Y])
    {
       mCameraRotTarget[Y] = angle;
@@ -238,7 +238,6 @@ void VisualizerView::setYRotation(double angle)
 ////////////////////////////////////////////////////////////////////////////////
 void VisualizerView::setZRotation(double angle)
 {
-   //normalizeAngle(angle);
    if (angle != mCameraRotTarget[Z])
    {
       mCameraRotTarget[Z] = angle;
@@ -275,8 +274,6 @@ void VisualizerView::initializeGL()
    glEnable(GL_CULL_FACE);
    glEnable(GL_MULTISAMPLE);
    glEnable(GL_COLOR_MATERIAL);
-   //glEnable(GL_POLYGON_OFFSET_FILL);
-   //glPolygonOffset(1.0, 1.0);
    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
    static GLfloat lightPosition[4] = { 1.0, 2.0, 1.0, 1.0 };
@@ -374,22 +371,28 @@ void VisualizerView::mouseMoveEvent(QMouseEvent *event)
    if (event->buttons() & Qt::LeftButton)
    {
       QMatrix4x4 mat;
-      mat.rotate(mCameraRotTarget[Z], 0.0, 0.0, 1.0);
       QVector3D pos;
-
-      if ((mCameraRot[X] < -90 && mCameraRot[X] > -270) ||
-         (mCameraRot[X] > 90 && mCameraRot[X] < 270)) dy = -dy;
 
       pos.setX(0.1 * -dx);
       pos.setY(0.1 * dy);
 
+      mat.rotate(mCameraRotTarget[X], 1.0, 0.0, 0.0);
+      pos = pos * mat;
+
+      mat.setToIdentity();
+      mat.rotate(mCameraRotTarget[Z], 0.0, 0.0, 1.0);
       pos = pos * mat;
 
       setXTranslation(mCameraTransTarget[X] + pos.x());
       setYTranslation(mCameraTransTarget[Y] + pos.y());
+      setZTranslation(mCameraTransTarget[Z] + pos.z());
    }
    if (event->buttons() & Qt::RightButton)
    {
+      double angle = getNormalizeAngle(mCameraRot[X]);
+      if ((angle < -90 && angle > -270) ||
+         (angle > 90 && angle < 270)) dx = -dx;
+
       setZRotation(mCameraRotTarget[Z] + dx);
       setXRotation(mCameraRotTarget[X] + dy);
    }
@@ -446,10 +449,18 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
       }
       break;
    case DRAW_QUALITY_MED:
-   case DRAW_QUALITY_HIGH:
       {
          glEnable(GL_FLAT);
          glShadeModel(GL_FLAT);
+      }
+   case DRAW_QUALITY_HIGH:
+      {
+         if (mPrefs.drawQuality == DRAW_QUALITY_HIGH)
+         {
+            glEnable(GL_SMOOTH);
+            glShadeModel(GL_SMOOTH);
+         }
+
          glEnable(GL_LIGHTING);
          glEnable(GL_LIGHT0);
 
@@ -715,15 +726,15 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data)
                         addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 - up * radius * 0.95 + right * radius + vec * radius);
 
                         // Generate our 8 vertex normal values.
-                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (up - right - vec));
-                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (up + right - vec));
-                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up - right - vec));
-                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up + right - vec));
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (up - right - vec).normalized());
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (up + right - vec).normalized());
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up - right - vec).normalized());
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up + right - vec).normalized());
 
-                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (up - right + vec));
-                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (up + right + vec));
-                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up - right + vec));
-                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up + right + vec));
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (up - right + vec).normalized());
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (up + right + vec).normalized());
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up - right + vec).normalized());
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up + right + vec).normalized());
                      }
                      break;
                   }
