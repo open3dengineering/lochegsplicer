@@ -42,6 +42,8 @@ public:
 
 protected:
    void keyPressEvent(QKeyEvent *event);
+   void showEvent(QShowEvent* event);
+   void closeEvent(QCloseEvent* event);
 
 signals:
    void emitBackgroundColorChanged(const QColor& color);
@@ -59,6 +61,9 @@ private:
    void setupConnections();
 
    void setBackgroundColor(const QColor& color);
+
+   void storeWindowState();
+   void restoreWindowState();
 
    PreferenceData    mPrefs;
 

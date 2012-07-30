@@ -50,12 +50,31 @@ MainWindow::MainWindow()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void MainWindow::keyPressEvent(QKeyEvent *e)
+MainWindow::~MainWindow()
 {
-   if (e->key() == Qt::Key_Escape)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MainWindow::keyPressEvent(QKeyEvent* event)
+{
+   if (event->key() == Qt::Key_Escape)
       close();
    else
-      QWidget::keyPressEvent(e);
+      QWidget::keyPressEvent(event);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MainWindow::showEvent(QShowEvent* event)
+{
+   restoreWindowState();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MainWindow::closeEvent(QCloseEvent* event)
+{
+   storeWindowState();
+
+   QWidget::closeEvent(event);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -599,6 +618,27 @@ void MainWindow::setupConnections()
 #ifdef BUILD_DEBUG_CONTROLS
    connect(mDebugExportLayerButton, SIGNAL(pressed()),               this, SLOT(onDebugExportLayerDataPressed()));
 #endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MainWindow::storeWindowState()
+{
+   QSettings settings(COMPANY_NAME, APPLICATION_NAME);
+   settings.beginGroup("MainWindowState");
+   settings.setValue("geometry", saveGeometry());
+   settings.endGroup();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MainWindow::restoreWindowState()
+{
+   QSettings settings(COMPANY_NAME, APPLICATION_NAME);
+   settings.beginGroup("MainWindowState");
+   if (settings.contains("geometry"))
+   {
+      restoreGeometry(settings.value("geometry").toByteArray());
+   }
+   settings.endGroup();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

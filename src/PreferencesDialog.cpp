@@ -48,6 +48,20 @@ void PreferencesDialog::keyPressEvent(QKeyEvent *e)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::showEvent(QShowEvent* event)
+{
+   restoreWindowState();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::closeEvent(QCloseEvent* event)
+{
+   storeWindowState();
+
+   QWidget::closeEvent(event);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onSaveConfigPressed()
 {
    QMessageBox::information(this, "Save!", "Not implemented yet.", QMessageBox::Ok);
@@ -203,6 +217,27 @@ void PreferencesDialog::setBackgroundColor(const QColor& color)
    mBackgroundColorButton->setIcon(QIcon(pix));
 
    emit emitBackgroundColorChanged(mPrefs.backgroundColor);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::storeWindowState()
+{
+   QSettings settings(COMPANY_NAME, APPLICATION_NAME);
+   settings.beginGroup("PreferencesDialogState");
+   settings.setValue("geometry", saveGeometry());
+   settings.endGroup();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::restoreWindowState()
+{
+   QSettings settings(COMPANY_NAME, APPLICATION_NAME);
+   settings.beginGroup("PreferencesDialogState");
+   if (settings.contains("geometry"))
+   {
+      restoreGeometry(settings.value("geometry").toByteArray());
+   }
+   settings.endGroup();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

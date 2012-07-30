@@ -43,9 +43,12 @@ class MainWindow : public QWidget
 
 public:
    MainWindow();
+   ~MainWindow();
 
 protected:
-   void keyPressEvent(QKeyEvent *event);
+   void keyPressEvent(QKeyEvent* event);
+   void showEvent(QShowEvent* event);
+   void closeEvent(QCloseEvent* event);
 
 public slots:
    void onOptionsPressed();
@@ -71,6 +74,9 @@ private:
 
    void setupUI();
    void setupConnections();
+
+   void storeWindowState();
+   void restoreWindowState();
 
    PreferenceData    mPrefs;
 
