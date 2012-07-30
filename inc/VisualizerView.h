@@ -120,6 +120,7 @@ private:
    const PreferenceData& mPrefs;
 
    GLint  mShaderProgram;
+   double mCameraRotDirection;
 
    double mLayerDrawHeight;
    

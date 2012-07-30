@@ -304,16 +304,17 @@ void VisualizerView::initializeGL()
    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
    glHint(GL_POLYGON_SMOOTH, GL_NICEST);
 
-   static GLfloat diffuseLight[4]  = {1.0, 1.0, 1.0, 1.0};
-   static GLfloat ambientLight[4]  = {0.4, 0.4, 0.4, 1.0};
-   static GLfloat lightPosition[4] = {1.0, 2.0, 1.0, 1.0};
+   static GLfloat diffuseLight[4]  = {1.0f, 1.0f, 1.0f, 1.0f};
+   static GLfloat ambientLight[4]  = {0.4f, 0.4f, 0.4f, 1.0f};
+   static GLfloat lightPosition[4] = {1.0f, 2.0f, 1.0f, 1.0f};
 
    glLightfv (GL_LIGHT0, GL_DIFFUSE, diffuseLight);
    glLightfv (GL_LIGHT0, GL_AMBIENT, ambientLight);
    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
  
    // Setup our vertex shader.
-   const static GLchar* vertCode = "varying vec3 vertex_light_position;" \
+   const static GLchar* vertCode = \
+      "varying vec3 vertex_light_position;" \
       "varying vec3 vertex_normal;" \
       "void main()\n" \
       "{\n" \
@@ -323,11 +324,12 @@ void VisualizerView::initializeGL()
       "   gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n" \
       "}\n";
 
-   const static GLchar* fragCode = "varying vec3 vertex_light_position;\n" \
+   const static GLchar* fragCode = \
+      "varying vec3 vertex_light_position;\n" \
       "varying vec3 vertex_normal;\n" \
       "void main()\n" \
       "{\n" \
-      "   float diffuse_value = max(dot(vertex_normal, vertex_light_position), 0.4);\n" \
+      "   float diffuse_value = max(dot(vertex_normal, vertex_light_position), 0.5);\n" \
       "   gl_FragColor = gl_Color * diffuse_value;\n" \
       "}\n";
 
@@ -424,6 +426,20 @@ void VisualizerView::resizeGL(int width, int height)
 void VisualizerView::mousePressEvent(QMouseEvent *event)
 {
    mLastPos = event->pos();
+
+   if (event->buttons() & Qt::RightButton)
+   {
+      double angle = getNormalizeAngle(mCameraRot[X]);
+      if ((angle < -90 && angle > -270) ||
+         (angle > 90 && angle < 270))
+      {
+         mCameraRotDirection = -1.0;
+      }
+      else
+      {
+         mCameraRotDirection = 1.0;
+      }
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -453,11 +469,7 @@ void VisualizerView::mouseMoveEvent(QMouseEvent *event)
    }
    if (event->buttons() & Qt::RightButton)
    {
-      double angle = getNormalizeAngle(mCameraRot[X]);
-      if ((angle < -90 && angle > -270) ||
-         (angle > 90 && angle < 270)) dx = -dx;
-
-      setZRotation(mCameraRotTarget[Z] + dx);
+      setZRotation(mCameraRotTarget[Z] + (dx * mCameraRotDirection));
       setXRotation(mCameraRotTarget[X] + dy);
    }
    mLastPos = event->pos();
@@ -513,17 +525,10 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
       }
       break;
    case DRAW_QUALITY_MED:
-      {
-         glEnable(GL_FLAT);
-         glShadeModel(GL_FLAT);
-      }
    case DRAW_QUALITY_HIGH:
       {
-         if (mPrefs.drawQuality == DRAW_QUALITY_HIGH)
-         {
-            glEnable(GL_SMOOTH);
-            glShadeModel(GL_SMOOTH);
-         }
+         glEnable(GL_SMOOTH);
+         glShadeModel(GL_SMOOTH);
 
          glEnable(GL_LIGHTING);
          glEnable(GL_LIGHT0);
