@@ -302,7 +302,7 @@ struct PreferenceData
       // Splicing Properties
       customPrefixCode.clear();
       exportComments = true;
-      exportDuplicateAxisPositions = false;
+      exportAllAxes = false;
       printSkirt = true;
       skirtDistance = 2;
 
@@ -329,7 +329,7 @@ struct PreferenceData
    // Splicing properties.
    QString customPrefixCode;
    bool exportComments;
-   bool exportDuplicateAxisPositions;
+   bool exportAllAxes;
    bool printSkirt;
    int skirtDistance;
 

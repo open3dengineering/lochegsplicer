@@ -262,7 +262,7 @@ bool GCodeSplicer::build(const QString& fileName)
                         {
                            // Only export this axis if it has changed, or if we
                            // have the preference to re-export duplicate axes.
-                           if (mPrefs.exportDuplicateAxisPositions ||
+                           if (mPrefs.exportAllAxes ||
                               (axis != E && code.axisValue[axis] != currentPos[axis]) ||
                               (axis == E && code.axisValue[axis] != 0.0))
                            {
@@ -385,7 +385,7 @@ bool GCodeSplicer::debugBuildLayerData(const QString& fileName)
                {
                   // Only export this axis if it has changed, or if we
                   // have the preference to re-export duplicate axes.
-                  if (mPrefs.exportDuplicateAxisPositions ||
+                  if (mPrefs.exportAllAxes ||
                      (axis != E && code.axisValue[axis] != currentPos[axis]) ||
                      (axis == E && code.axisValue[axis] != 0.0))
                   {

@@ -97,6 +97,36 @@ void PreferencesDialog::onBackgroundColorPressed()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onPrefixChanged()
+{
+   mPrefs.customPrefixCode = mGCodePrefixEdit->toPlainText();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExportCommentsChanged(int state)
+{
+   mPrefs.exportComments = (state == Qt::Checked);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExportAllAxesChanged(int state)
+{
+   mPrefs.exportAllAxes = (state == Qt::Checked);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onPrintSkirtChanged(int state)
+{
+   mPrefs.printSkirt = (state == Qt::Checked);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onSkirtDistanceChanged(double value)
+{
+   mPrefs.skirtDistance = value;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onDefaultPressed()
 {
    mPrefs = PreferenceData();
@@ -116,65 +146,122 @@ void PreferencesDialog::setupUI()
    mTabWidget = new QTabWidget();
    mainLayout->addWidget(mTabWidget);
 
-   // Editor Tab.
+   //// Editor Tab.
    QWidget* editorTab = new QWidget();
    mTabWidget->addTab(editorTab, "Editor");
+   {
+      QGridLayout* editorLayout = new QGridLayout();
+      editorTab->setLayout(editorLayout);
 
-   QGridLayout* editorLayout = new QGridLayout();
-   editorTab->setLayout(editorLayout);
+      // File Group.
+      QGroupBox* fileGroup = new QGroupBox("File");
+      editorLayout->addWidget(fileGroup, 0, 0, 1, 1);
 
-   // File Group.
-   QGroupBox* fileGroup = new QGroupBox("File");
-   editorLayout->addWidget(fileGroup, 0, 0, 1, 1);
+      QHBoxLayout* fileLayout = new QHBoxLayout();
+      fileGroup->setLayout(fileLayout);
 
-   QHBoxLayout* fileLayout = new QHBoxLayout();
-   fileGroup->setLayout(fileLayout);
+      mSaveConfigurationButton = new QPushButton("Save Config...");
+      fileLayout->addWidget(mSaveConfigurationButton);
 
-   mSaveConfigurationButton = new QPushButton("Save Config...");
-   fileLayout->addWidget(mSaveConfigurationButton);
+      mLoadConfigurationButton = new QPushButton("Load Config...");
+      fileLayout->addWidget(mLoadConfigurationButton);
+      editorLayout->setRowStretch(0, 0);
 
-   mLoadConfigurationButton = new QPushButton("Load Config...");
-   fileLayout->addWidget(mLoadConfigurationButton);
-   editorLayout->setRowStretch(0, 0);
+      // Rendering Group.
+      QGroupBox* renderingGroup = new QGroupBox("Rendering");
+      editorLayout->addWidget(renderingGroup, 1, 0, 1, 1);
 
-   // Rendering Group.
-   QGroupBox* renderingGroup = new QGroupBox("Rendering");
-   editorLayout->addWidget(renderingGroup, 1, 0, 1, 1);
+      QGridLayout* renderingLayout = new QGridLayout();
+      renderingGroup->setLayout(renderingLayout);
 
-   QGridLayout* renderingLayout = new QGridLayout();
-   renderingGroup->setLayout(renderingLayout);
+      QLabel* drawQualityLabel = new QLabel("Draw Quality: ");
+      drawQualityLabel->setAlignment(Qt::AlignRight);
+      renderingLayout->addWidget(drawQualityLabel, 0, 0, 1, 1);
 
-   QLabel* drawQualityLabel = new QLabel("Draw Quality: ");
-   drawQualityLabel->setAlignment(Qt::AlignRight);
-   renderingLayout->addWidget(drawQualityLabel, 0, 0, 1, 1);
+      mDrawQualityCombo = new QComboBox();
+      mDrawQualityCombo->addItem("Low");
+      mDrawQualityCombo->addItem("Medium");
+      mDrawQualityCombo->addItem("High");
+      mDrawQualityCombo->setCurrentIndex(mPrefs.drawQuality);
+      renderingLayout->addWidget(mDrawQualityCombo, 0, 1, 1, 2);
 
-   mDrawQualityCombo = new QComboBox();
-   mDrawQualityCombo->addItem("Low");
-   mDrawQualityCombo->addItem("Medium");
-   mDrawQualityCombo->addItem("High");
-   mDrawQualityCombo->setCurrentIndex(mPrefs.drawQuality);
-   renderingLayout->addWidget(mDrawQualityCombo, 0, 1, 1, 2);
+      QLabel* layerSkipLabel = new QLabel("Layer Skip: ");
+      layerSkipLabel->setAlignment(Qt::AlignRight);
+      renderingLayout->addWidget(layerSkipLabel, 1, 0, 1, 1);
 
-   QLabel* layerSkipLabel = new QLabel("Layer Skip: ");
-   layerSkipLabel->setAlignment(Qt::AlignRight);
-   renderingLayout->addWidget(layerSkipLabel, 1, 0, 1, 1);
+      mLayerSkipSpin = new QSpinBox();
+      mLayerSkipSpin->setValue(mPrefs.layerSkipSize);
+      renderingLayout->addWidget(mLayerSkipSpin, 1, 1, 1, 2);
 
-   mLayerSkipSpin = new QSpinBox();
-   mLayerSkipSpin->setValue(mPrefs.layerSkipSize);
-   renderingLayout->addWidget(mLayerSkipSpin, 1, 1, 1, 2);
+      mBackgroundColorButton = new QPushButton("Background Color");
+      renderingLayout->addWidget(mBackgroundColorButton, 2, 0, 1, 3);
+      setBackgroundColor(mPrefs.backgroundColor);
+      renderingLayout->setRowStretch(1, 0);
 
-   mBackgroundColorButton = new QPushButton("Background Color");
-   renderingLayout->addWidget(mBackgroundColorButton, 2, 0, 1, 3);
-   setBackgroundColor(mPrefs.backgroundColor);
-   renderingLayout->setRowStretch(1, 0);
+      renderingLayout->setColumnStretch(0, 1);
+      renderingLayout->setColumnStretch(1, 1);
+      renderingLayout->setColumnStretch(2, 1);
 
-   renderingLayout->setColumnStretch(0, 1);
-   renderingLayout->setColumnStretch(1, 1);
-   renderingLayout->setColumnStretch(2, 1);
+      editorLayout->setRowStretch(2, 1);
+   }
 
-   editorLayout->setRowStretch(2, 1);
+   //// Splicing Tab.
+   QWidget* splicingTab = new QWidget();
+   mTabWidget->addTab(splicingTab, "Splicing");
+   {
+      QVBoxLayout* splicingLayout = new QVBoxLayout();
+      splicingTab->setLayout(splicingLayout);
 
-   // Reset button.
+      // Custom GCode Prefix.
+      QLabel* prefixLabel = new QLabel("GCode Prefix:");
+      splicingLayout->addWidget(prefixLabel);
+
+      mGCodePrefixEdit = new QTextEdit();
+      splicingLayout->addWidget(mGCodePrefixEdit);
+      mGCodePrefixEdit->setText(mPrefs.customPrefixCode);
+
+      // Export comments and all axes.
+      QHBoxLayout* checkboxLayout = new QHBoxLayout();
+      splicingLayout->addLayout(checkboxLayout);
+
+      mExportCommentsCheckbox = new QCheckBox("Export Comments");
+      mExportCommentsCheckbox->setChecked(mPrefs.exportComments);
+      mExportAllAxesCheckbox = new QCheckBox("Export All Axes");
+      mExportAllAxesCheckbox->setChecked(mPrefs.exportAllAxes);
+      checkboxLayout->addWidget(mExportCommentsCheckbox);
+      checkboxLayout->addWidget(mExportAllAxesCheckbox);
+
+      // Skirt.
+      QHBoxLayout* skirtLayout = new QHBoxLayout();
+      splicingLayout->addLayout(skirtLayout);
+
+      mPrintSkirtCheckbox = new QCheckBox("Print Skirt");
+      mPrintSkirtCheckbox->setChecked(mPrefs.printSkirt);
+      QLabel* skirtDistanceLabel = new QLabel("Skirt Distance: ");
+      skirtDistanceLabel->setAlignment(Qt::AlignRight);
+      mSkirtDistanceSpin = new QDoubleSpinBox();
+      mSkirtDistanceSpin->setSuffix("mm");
+      mSkirtDistanceSpin->setMinimum(0.0);
+      mSkirtDistanceSpin->setMaximum(100.0);
+      mSkirtDistanceSpin->setValue(mPrefs.skirtDistance);
+      skirtLayout->addWidget(mPrintSkirtCheckbox);
+      skirtLayout->addWidget(skirtDistanceLabel);
+      skirtLayout->addWidget(mSkirtDistanceSpin);
+   }
+
+   //// Printer Tab.
+   QWidget* printerTab = new QWidget();
+   mTabWidget->addTab(printerTab, "Printer");
+   {
+   }
+
+   //// Advanced Tab.
+   QWidget* advancedTab = new QWidget();
+   mTabWidget->addTab(advancedTab, "Advanced");
+   {
+   }
+
+   //// Dialog buttons.
    QHBoxLayout* buttonLayout = new QHBoxLayout();
    mainLayout->addLayout(buttonLayout);
 
@@ -193,16 +280,25 @@ void PreferencesDialog::setupUI()
 ////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::setupConnections()
 {
-   // File
+   //// Editor Tab.
    connect(mSaveConfigurationButton,   SIGNAL(pressed()),                  this, SLOT(onSaveConfigPressed()));
    connect(mLoadConfigurationButton,   SIGNAL(pressed()),                  this, SLOT(onLoadConfigPressed()));
-
-   // Rendering
    connect(mDrawQualityCombo,          SIGNAL(currentIndexChanged(int)),   this, SLOT(onDrawQualityChanged(int)));
    connect(mLayerSkipSpin,             SIGNAL(valueChanged(int)),          this, SLOT(onLayerSkipChanged(int)));
    connect(mBackgroundColorButton,     SIGNAL(pressed()),                  this, SLOT(onBackgroundColorPressed()));
 
-   // Dialog Buttons
+   //// Splicing Tab.
+   connect(mGCodePrefixEdit,           SIGNAL(textChanged()),              this, SLOT(onPrefixChanged()));
+   connect(mExportCommentsCheckbox,    SIGNAL(stateChanged(int)),          this, SLOT(onExportCommentsChanged(int)));
+   connect(mExportAllAxesCheckbox,     SIGNAL(stateChanged(int)),          this, SLOT(onExportAllAxesChanged(int)));
+   connect(mPrintSkirtCheckbox,        SIGNAL(stateChanged(int)),          this, SLOT(onPrintSkirtChanged(int)));
+   connect(mSkirtDistanceSpin,         SIGNAL(valueChanged(double)),       this, SLOT(onSkirtDistanceChanged(double)));
+
+   //// Printer Tab.
+
+   //// Advanced Tab.
+
+   //// Dialog Buttons.
    connect(mOkButton,                  SIGNAL(pressed()),                  this, SLOT(accept()));
    connect(mCancelButton,              SIGNAL(pressed()),                  this, SLOT(close()));
    connect(mDefaultButton,             SIGNAL(pressed()),                  this, SLOT(onDefaultPressed()));
