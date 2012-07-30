@@ -62,6 +62,7 @@ SET(HEADER_FILES
    ${HEADER_PATH}/GCodeObject.h
    ${HEADER_PATH}/GCodeParser.h
    ${HEADER_PATH}/GCodeSplicer.h
+   ${HEADER_PATH}/glext.h
    ${HEADER_PATH}/MainWindow.h
    ${HEADER_PATH}/PreferencesDialog.h
    ${HEADER_PATH}/VisualizerView.h

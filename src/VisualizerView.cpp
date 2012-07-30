@@ -27,10 +27,21 @@
 #include <math.h>
 #include <assert.h>
 
+#include <glext.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef GL_MULTISAMPLE
 #define GL_MULTISAMPLE  0x809D
 #endif
+
+////////////////////////////////////////////////////////////////////////////////
+#define glCreateProgram ((PFNGLCREATEPROGRAMPROC)	wglGetProcAddress("glCreateProgram"))
+#define glCreateShader  ((PFNGLCREATESHADERPROC)	wglGetProcAddress("glCreateShader"))
+#define glShaderSource  ((PFNGLSHADERSOURCEPROC)	wglGetProcAddress("glShaderSource"))
+#define glCompileShader ((PFNGLCOMPILESHADERPROC)	wglGetProcAddress("glCompileShader"))
+#define glAttachShader  ((PFNGLATTACHSHADERPROC)	wglGetProcAddress("glAttachShader"))
+#define glLinkProgram   ((PFNGLLINKPROGRAMPROC)		wglGetProcAddress("glLinkProgram"))
+#define glUseProgram    ((PFNGLUSEPROGRAMPROC)		wglGetProcAddress("glUseProgram"))
 
 ////////////////////////////////////////////////////////////////////////////////
 VisualizerView::VisualizerView(const PreferenceData& prefs)
@@ -71,6 +82,8 @@ VisualizerView::~VisualizerView()
    clearObjects();
    mUpdateTimer->stop();
    delete mUpdateTimer;
+
+   glUseProgram(0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -127,6 +140,19 @@ void VisualizerView::clearObjects()
    mObjectList.clear();
 
    updateGL();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void VisualizerView::setShaderEnabled(bool enabled)
+{
+   if (enabled)
+   {
+      glUseProgram(mShaderProgram);
+   }
+   else
+   {
+      glUseProgram(0);
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -274,10 +300,48 @@ void VisualizerView::initializeGL()
    glEnable(GL_CULL_FACE);
    glEnable(GL_MULTISAMPLE);
    glEnable(GL_COLOR_MATERIAL);
+   glEnable(GL_POLYGON_SMOOTH);
    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+   glHint(GL_POLYGON_SMOOTH, GL_NICEST);
 
-   static GLfloat lightPosition[4] = { 1.0, 2.0, 1.0, 1.0 };
+   static GLfloat diffuseLight[4]  = {1.0, 1.0, 1.0, 1.0};
+   static GLfloat ambientLight[4]  = {0.4, 0.4, 0.4, 1.0};
+   static GLfloat lightPosition[4] = {1.0, 2.0, 1.0, 1.0};
+
+   glLightfv (GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+   glLightfv (GL_LIGHT0, GL_AMBIENT, ambientLight);
    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+ 
+   // Setup our vertex shader.
+   const static GLchar* vertCode = "varying vec3 vertex_light_position;" \
+      "varying vec3 vertex_normal;" \
+      "void main()\n" \
+      "{\n" \
+      "   vertex_normal = normalize(gl_NormalMatrix * gl_Normal);\n" \
+      "   vertex_light_position = normalize(gl_LightSource[0].position.xyz);\n" \
+      "   gl_FrontColor = gl_Color;\n" \
+      "   gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n" \
+      "}\n";
+
+   const static GLchar* fragCode = "varying vec3 vertex_light_position;\n" \
+      "varying vec3 vertex_normal;\n" \
+      "void main()\n" \
+      "{\n" \
+      "   float diffuse_value = max(dot(vertex_normal, vertex_light_position), 0.4);\n" \
+      "   gl_FragColor = gl_Color * diffuse_value;\n" \
+      "}\n";
+
+   mShaderProgram = glCreateProgram();
+   GLint vert = glCreateShader(GL_VERTEX_SHADER);
+   GLint frag = glCreateShader(GL_FRAGMENT_SHADER);
+
+   glShaderSource(vert, 1, &vertCode, 0);
+   glShaderSource(frag, 1, &fragCode, 0);
+   glCompileShader(vert);
+   glCompileShader(frag);
+   glAttachShader(mShaderProgram, vert);
+   glAttachShader(mShaderProgram, frag);
+   glLinkProgram(mShaderProgram);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

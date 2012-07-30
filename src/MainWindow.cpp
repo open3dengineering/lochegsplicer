@@ -78,6 +78,8 @@ void MainWindow::onOptionsPressed()
       // Finalize the properties.
       mPrefs = dlg.getPreferences();
 
+      mVisualizerView->setShaderEnabled(mPrefs.drawQuality == DRAW_QUALITY_HIGH);
+
       if (regenerateGeometry)
       {
          if (!mVisualizerView->regenerateGeometry())

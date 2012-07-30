@@ -48,6 +48,8 @@ public:
 
    void clearObjects();
 
+   void setShaderEnabled(bool enabled);
+
    QSize minimumSizeHint() const;
    QSize sizeHint() const;
 
@@ -116,6 +118,8 @@ private:
    QTimer* mUpdateTimer;
 
    const PreferenceData& mPrefs;
+
+   GLint  mShaderProgram;
 
    double mLayerDrawHeight;
    
