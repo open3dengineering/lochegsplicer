@@ -355,11 +355,9 @@ bool VisualizerView::updateCamera()
    // Update camera translation towards target.
    for (int axis = 0; axis < AXIS_NUM_NO_E; ++axis)
    {
-      dist  = mCameraRotTarget[axis] - mCameraRot[axis];
-      double dist2 = mCameraRotTarget[axis] - (mCameraRot[axis] + 360.0);
-      if (fabs(dist) > fabs(dist2)) dist = dist2;
+      dist = mCameraRotTarget[axis] - mCameraRot[axis];
       if (dist) changed = true;
-      mCameraRot[axis] += dist / 2.0;
+      mCameraRot[axis] += dist / 4.0;
 
       dist = (mCameraTransTarget[axis] - mCameraTrans[axis]) / 2.0;
       if (dist) changed = true;
@@ -396,6 +394,8 @@ void VisualizerView::paintGL()
    {
       drawObject(mObjectList[objectIndex]);
    }
+
+   drawPlatform();
    glPopMatrix();
 }
 
@@ -439,6 +439,18 @@ void VisualizerView::mousePressEvent(QMouseEvent *event)
       {
          mCameraRotDirection = 1.0;
       }
+
+      if (mCameraRotTarget[X] < -90 && mCameraRotTarget[X] >= -135)
+      {
+         mCameraRotDirection *= -1.0;
+      }
+
+      // Flip it yet again if the mouse is on the top half of the window.
+      if ((mCameraRotTarget[X] > -45 || mCameraRotTarget[X] < -135) &&
+         event->pos().y() < height() / 2)
+      {
+         mCameraRotDirection *= -1.0;
+      }
    }
 }
 
@@ -453,8 +465,8 @@ void VisualizerView::mouseMoveEvent(QMouseEvent *event)
       QMatrix4x4 mat;
       QVector3D pos;
 
-      pos.setX(0.1 * -dx);
-      pos.setY(0.1 * dy);
+      pos.setX(0.001 * -dx * -mCameraZoom);
+      pos.setY(0.001 * dy * -mCameraZoom);
 
       mat.rotate(mCameraRotTarget[X], 1.0, 0.0, 0.0);
       pos = pos * mat;
@@ -469,8 +481,8 @@ void VisualizerView::mouseMoveEvent(QMouseEvent *event)
    }
    if (event->buttons() & Qt::RightButton)
    {
-      setZRotation(mCameraRotTarget[Z] + (dx * mCameraRotDirection));
-      setXRotation(mCameraRotTarget[X] + dy);
+      setZRotation(mCameraRotTarget[Z] + (dx * mCameraRotDirection * 0.5));
+      setXRotation(mCameraRotTarget[X] + (dy * 0.5));
    }
    mLastPos = event->pos();
 }
@@ -479,6 +491,65 @@ void VisualizerView::mouseMoveEvent(QMouseEvent *event)
 void VisualizerView::wheelEvent(QWheelEvent* event)
 {
    setZoom(mCameraZoomTarget + (-mCameraZoomTarget * event->delta() * 0.001));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void VisualizerView::drawPlatform()
+{
+   QColor color = Qt::lightGray;
+
+   // Platform grid.
+   glLineWidth(1.0f);
+   glBegin(GL_LINES);
+   {
+      glColor4f(color.redF(), color.greenF(), color.blueF(), 1.0f);
+
+      for (double y = ((mPrefs.platformHeight / 20.0) - floor(mPrefs.platformHeight / 20.0)) * 10.0;
+         y <= mPrefs.platformHeight; y += 10.0)
+      {
+         glVertex3d(0.0, y, 0.0);
+         glVertex3d(mPrefs.platformWidth, y, 0.0);
+      }
+
+      for (double x = ((mPrefs.platformWidth / 20.0) - floor(mPrefs.platformWidth / 20.0)) * 10.0;
+         x <= mPrefs.platformWidth; x += 10.0)
+      {
+         glVertex3d(x, 0.0, 0.0);
+         glVertex3d(x, mPrefs.platformHeight, 0.0);
+      }
+   }
+   glEnd();
+
+   // Draw the grid border.
+   color = Qt::white;
+   glLineWidth(5.0f);
+   glBegin(GL_LINES);
+   {
+      glColor4f(color.redF(), color.greenF(), color.blueF(), 1.0f);
+
+      glVertex3d(0.0, 0.0, 0.0);
+      glVertex3d(0.0, mPrefs.platformHeight, 0.0);
+
+      glVertex3d(0.0, mPrefs.platformHeight, 0.0);
+      glVertex3d(mPrefs.platformWidth, mPrefs.platformHeight, 0.0);
+
+      glVertex3d(mPrefs.platformWidth, mPrefs.platformHeight, 0.0);
+      glVertex3d(mPrefs.platformWidth, 0.0, 0.0);
+   }
+   glEnd();
+
+   color = Qt::yellow;
+   glLineWidth(8.0f);
+   glBegin(GL_LINES);
+   {
+      glColor4f(color.redF(), color.greenF(), color.blueF(), 1.0f);
+
+      glVertex3d(0.0, 0.0, 0.0);
+      glVertex3d(mPrefs.platformWidth, 0.0, 0.0);
+   }
+   glEnd();
+
+   glPopAttrib();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

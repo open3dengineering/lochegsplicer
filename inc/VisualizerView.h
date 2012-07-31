@@ -95,6 +95,7 @@ protected:
    void wheelEvent(QWheelEvent* event);
 
    void drawObject(const VisualizerObjectData& object);
+   void drawPlatform();
 
 private:
 

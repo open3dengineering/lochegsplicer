@@ -28,9 +28,6 @@ QT_BEGIN_NAMESPACE
 class QTabWidget;
 class QComboBox;
 class QSpinBox;
-class QTextEdit;
-class QCheckBox;
-class QDoubleSpinBox;
 QT_END_NAMESPACE
 
 
@@ -52,26 +49,11 @@ signals:
    void emitBackgroundColorChanged(const QColor& color);
 
 public slots:
-   //// Editor Tab.
    void onSaveConfigPressed();
    void onLoadConfigPressed();
    void onDrawQualityChanged(int value);
    void onLayerSkipChanged(int value);
    void onBackgroundColorPressed();
-
-   //// Splicing Tab.
-   void onPrefixChanged();
-   void onExportCommentsChanged(int state);
-   void onExportAllAxesChanged(int state);
-   void onPrintSkirtChanged(int state);
-   void onSkirtDistanceChanged(double value);
-   // TODO: Added extruder change options
-
-   //// Printer Tab.
-
-   //// Advanced Tab.
-
-   //// Dialog buttons.
    void onDefaultPressed();
 
 private:
@@ -87,25 +69,12 @@ private:
 
    QTabWidget*       mTabWidget;
 
-   //// Editor Tab
    QPushButton*      mSaveConfigurationButton;
    QPushButton*      mLoadConfigurationButton;
    QComboBox*        mDrawQualityCombo;
    QSpinBox*         mLayerSkipSpin;
    QPushButton*      mBackgroundColorButton;
 
-   //// Splicing Tab
-   QTextEdit*        mGCodePrefixEdit;
-   QCheckBox*        mExportCommentsCheckbox;
-   QCheckBox*        mExportAllAxesCheckbox;
-   QCheckBox*        mPrintSkirtCheckbox;
-   QDoubleSpinBox*   mSkirtDistanceSpin;
-
-   //// Printer Tab.
-
-   //// Advanced Tab.
-
-   //// Dialog Buttons.
    QPushButton*      mOkButton;
    QPushButton*      mCancelButton;
    QPushButton*      mDefaultButton;
