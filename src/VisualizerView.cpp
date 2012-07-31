@@ -440,13 +440,13 @@ void VisualizerView::mousePressEvent(QMouseEvent *event)
          mCameraRotDirection = 1.0;
       }
 
-      if (mCameraRotTarget[X] < -90 && mCameraRotTarget[X] >= -135)
+      if (mCameraRotTarget[X] < -90 && mCameraRotTarget[X] >= -165)
       {
          mCameraRotDirection *= -1.0;
       }
 
       // Flip it yet again if the mouse is on the top half of the window.
-      if ((mCameraRotTarget[X] > -45 || mCameraRotTarget[X] < -135) &&
+      if ((mCameraRotTarget[X] > -15 || mCameraRotTarget[X] < -165) &&
          event->pos().y() < height() / 2)
       {
          mCameraRotDirection *= -1.0;
