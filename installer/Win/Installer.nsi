@@ -12,9 +12,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                 Paths to assets and binaries                ;;;;
 ;;;; - Edit these paths if you have custom locations for files   ;;;;
-!define PROJECT_BIN_PATH      "..\build\bin"
-!define PROJECT_CONTEXT_PATH  "..\data"
-!define PROJECT_TEST_PATH     "..\test"
+!define PROJECT_BIN_PATH      "..\..\build\bin"
+!define PROJECT_CONTEXT_PATH  "..\..\data"
+!define PROJECT_TEST_PATH     "..\..\test"
 
 !define QT_PATH               "$%QT_DIR%\bin"
 ;;;;                                                             ;;;;
@@ -107,7 +107,7 @@ Section "Application" SEC01
 
   ; Batch file
   File "LocheGSplicer${CONFIG_NAME}.bat"
-  File "..\README.txt"
+  File "..\..\README.txt"
 
   ; Application binaries
   SetOutPath "$INSTDIR\bin"
