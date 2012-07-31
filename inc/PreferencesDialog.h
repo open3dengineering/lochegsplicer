@@ -28,6 +28,10 @@ QT_BEGIN_NAMESPACE
 class QTabWidget;
 class QComboBox;
 class QSpinBox;
+class QTextEdit;
+class QCheckBox;
+class QDoubleSpinBox;
+class QListWidget;
 QT_END_NAMESPACE
 
 
@@ -47,13 +51,40 @@ protected:
 
 signals:
    void emitBackgroundColorChanged(const QColor& color);
+   void emitExtruderColorChanged(const QColor& color, int index);
 
 public slots:
+   //// Editor Tab.
    void onSaveConfigPressed();
    void onLoadConfigPressed();
    void onDrawQualityChanged(int value);
    void onLayerSkipChanged(int value);
    void onBackgroundColorPressed();
+
+   //// Splicing Tab.
+   void onPrefixChanged();
+   void onExportCommentsChanged(int state);
+   void onExportAllAxesChanged(int state);
+   void onPrintSkirtChanged(int state);
+   void onSkirtDistanceChanged(double value);
+
+   //// Printer Tab.
+   void onExtruderSelected(int index);
+   void onExtruderAddPressed();
+   void onExtruderRemovePressed();
+   void onExtruderOffsetXChanged(double value);
+   void onExtruderOffsetYChanged(double value);
+   void onExtruderOffsetZChanged(double value);
+   void onExtruderFlowChanged(double value);
+   void onExtruderIdleTempChanged(double value);
+   void onExtruderPrintTempChanged(double value);
+   void onExtruderColorPressed();
+   void onPlatformWidthChanged(double value);
+   void onPlatformHeightChanged(double value);
+
+   //// Advanced Tab.
+
+   //// Dialog buttons.
    void onDefaultPressed();
 
 private:
@@ -61,6 +92,7 @@ private:
    void setupConnections();
 
    void setBackgroundColor(const QColor& color);
+   void setExtruderColor(const QColor& color);
 
    void storeWindowState();
    void restoreWindowState();
@@ -69,12 +101,38 @@ private:
 
    QTabWidget*       mTabWidget;
 
+   //// Editor Tab
    QPushButton*      mSaveConfigurationButton;
    QPushButton*      mLoadConfigurationButton;
    QComboBox*        mDrawQualityCombo;
    QSpinBox*         mLayerSkipSpin;
    QPushButton*      mBackgroundColorButton;
 
+   //// Splicing Tab
+   QTextEdit*        mGCodePrefixEdit;
+   QCheckBox*        mExportCommentsCheckbox;
+   QCheckBox*        mExportAllAxesCheckbox;
+   QCheckBox*        mPrintSkirtCheckbox;
+   QDoubleSpinBox*   mSkirtDistanceSpin;
+
+   //// Printer Tab.
+   QListWidget*      mExtruderList;
+   QPushButton*      mAddExtruderButton;
+   QPushButton*      mRemoveExtruderButton;
+   QDoubleSpinBox*   mExtruderOffsetXSpin;
+   QDoubleSpinBox*   mExtruderOffsetYSpin;
+   QDoubleSpinBox*   mExtruderOffsetZSpin;
+   QDoubleSpinBox*   mExtruderFlowSpin;
+   QDoubleSpinBox*   mExtruderIdleTempSpin;
+   QDoubleSpinBox*   mExtruderPrintTempSpin;
+   QPushButton*      mExtruderColorButton;
+   QDoubleSpinBox*   mPlatformWidthSpin;
+   QDoubleSpinBox*   mPlatformHeightSpin;
+   int               mCurrentExtruder;
+
+   //// Advanced Tab.
+
+   //// Dialog Buttons.
    QPushButton*      mOkButton;
    QPushButton*      mCancelButton;
    QPushButton*      mDefaultButton;

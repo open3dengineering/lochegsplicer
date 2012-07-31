@@ -99,6 +99,14 @@ void MainWindow::onOptionsPressed()
 
       mVisualizerView->setShaderEnabled(mPrefs.drawQuality == DRAW_QUALITY_HIGH);
 
+      int extruderCount = (int)mPrefs.extruderList.size() - 1;
+      int count = mObjectListWidget->rowCount();
+      for (int index = 0; index < count; ++index)
+      {
+         QSpinBox* extruderSpin = (QSpinBox*)mObjectListWidget->cellWidget(index, 1);
+         extruderSpin->setMaximum(extruderCount);
+      }
+
       if (regenerateGeometry)
       {
          if (!mVisualizerView->regenerateGeometry())

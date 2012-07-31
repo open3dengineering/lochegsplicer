@@ -214,6 +214,8 @@ struct ExtruderData
       }
 
       flow = 1.0;
+      idleTemp = 220.0;
+      printTemp = 220.0;
       color = Qt::white;
    }
 
@@ -224,11 +226,15 @@ struct ExtruderData
       offset[Z] = zOffset;
 
       flow = flowRate;
+      idleTemp = 220.0;
+      printTemp = 220.0;
       color = col;
    }
 
    double offset[AXIS_NUM_NO_E];
    double flow;
+   double idleTemp;
+   double printTemp;
    QColor color;
 };
 
@@ -302,14 +308,13 @@ struct PreferenceData
       // Splicing Properties
       customPrefixCode.clear();
       exportComments = true;
-      exportDuplicateAxisPositions = false;
+      exportAllAxes = false;
       printSkirt = true;
       skirtDistance = 2;
 
       // Printer properties.
       extruderList.push_back(ExtruderData(Qt::green));
-      extruderList.push_back(ExtruderData(Qt::blue, 3.0));
-      //extruderList.push_back(ExtruderData(Qt::blue, 23.5));
+      extruderList.push_back(ExtruderData(Qt::blue, 23.5));
       platformWidth = 200;
       platformHeight = 200;
 
@@ -329,7 +334,7 @@ struct PreferenceData
    // Splicing properties.
    QString customPrefixCode;
    bool exportComments;
-   bool exportDuplicateAxisPositions;
+   bool exportAllAxes;
    bool printSkirt;
    int skirtDistance;
 
