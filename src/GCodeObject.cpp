@@ -46,7 +46,7 @@ GCodeObject::~GCodeObject()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool GCodeObject::loadFile(const QString &fileName)
+bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
 {
    GCodeParser parser;
 
@@ -56,15 +56,10 @@ bool GCodeObject::loadFile(const QString &fileName)
       return false;
    }
 
-   QWidget* progressWindow = new QWidget();
-   progressWindow->setWindowFlags(Qt::CustomizeWindowHint);
-   QVBoxLayout* progressLayout = new QVBoxLayout();
-   QProgressDialog* progressDialog = new QProgressDialog("Importing...", "Cancel", 0, 100);
-   progressDialog->setWindowModality(Qt::WindowModal);
-   progressLayout->addWidget(progressDialog);
-   progressWindow->setLayout(progressLayout);
-   progressWindow->setFixedSize(progressWindow->sizeHint());
-   progressWindow->show();
+   QProgressDialog progressDialog("Importing...", "Cancel", 0, 100, parent);
+   progressDialog.setWindowModality(Qt::WindowModal);
+   progressDialog.setFixedSize(progressDialog.sizeHint());
+   progressDialog.show();
 
    bool queueFinalizeTempBuffer = false;
    std::vector<GCodeCommand> tempLayerBuffer;
@@ -94,18 +89,11 @@ bool GCodeObject::loadFile(const QString &fileName)
    // and included in the final product as is.
    while (parser.parseNext())
    {
-      progressDialog->setValue(int(parser.getProgress() * 100.0));
-      progressDialog->show();
+      progressDialog.setValue(int(parser.getProgress() * 100.0));
 
-      if (progressDialog->wasCanceled())
+      if (progressDialog.wasCanceled())
       {
-         if (progressWindow)
-         {
-            progressWindow->hide();
-            delete progressWindow;
-         }
-
-         mError = "Import was cancelled.";
+         mError = "";
          return false;
       }
 
@@ -423,12 +411,6 @@ bool GCodeObject::loadFile(const QString &fileName)
          // A T0 code is valid as it does not change extruders...
          if (parser.codeValueLong() != 0)
          {
-            if (progressWindow)
-            {
-               progressWindow->hide();
-               delete progressWindow;
-            }
-
             // We should not find any extruder change commands as we are assuming
             // all the gcode in any given file are for a single extruder.
             // We are unequipped to deal with this case so we must fail the load.
@@ -490,12 +472,6 @@ bool GCodeObject::loadFile(const QString &fileName)
    if (averageCount > 1)
    {
       mAverageLayerHeight /= averageCount;
-   }
-
-   if (progressWindow)
-   {
-      progressWindow->hide();
-      delete progressWindow;
    }
 
    // We need to 'heal' our layers to remove any extruder

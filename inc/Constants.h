@@ -226,8 +226,8 @@ struct ExtruderData
       offset[Z] = zOffset;
 
       flow = flowRate;
-      idleTemp = 220.0;
-      printTemp = 220.0;
+      idleTemp = 0.0;
+      printTemp = 0.0;
       color = col;
    }
 
@@ -254,6 +254,8 @@ struct VisualizerBufferData
       vertexCount = 0;
       quadCount = 0;
       height = 0.0;
+
+      displayListIndex = 0x0501;
    }
 
    void free()
@@ -279,6 +281,8 @@ struct VisualizerBufferData
       vertexCount = 0;
       quadCount = 0;
       height = 0.0;
+
+      displayListIndex = 0x0501;
    }
 
    double*        vertexBuffer;
@@ -287,6 +291,8 @@ struct VisualizerBufferData
    int            vertexCount;
    unsigned int   quadCount;
    double         height;
+
+   unsigned int   displayListIndex;
 };
 
 struct VisualizerObjectData
@@ -302,6 +308,7 @@ struct PreferenceData
    {
       // Editor Properties
       backgroundColor = Qt::darkGray;
+      useDisplayLists = false;
       drawQuality = DRAW_QUALITY_MED;
       layerSkipSize = 0;
 
@@ -328,6 +335,7 @@ struct PreferenceData
 
    // Editor properties.
    QColor backgroundColor;
+   bool useDisplayLists;
    DrawQuality drawQuality;
    int layerSkipSize;
 

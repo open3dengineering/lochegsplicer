@@ -57,6 +57,7 @@ public slots:
    //// Editor Tab.
    void onSaveConfigPressed();
    void onLoadConfigPressed();
+   void onUseDisplayListsChanged(int state);
    void onDrawQualityChanged(int value);
    void onLayerSkipChanged(int value);
    void onBackgroundColorPressed();
@@ -104,6 +105,7 @@ private:
    //// Editor Tab
    QPushButton*      mSaveConfigurationButton;
    QPushButton*      mLoadConfigurationButton;
+   QCheckBox*        mUseDisplayListsCheckbox;
    QComboBox*        mDrawQualityCombo;
    QSpinBox*         mLayerSkipSpin;
    QPushButton*      mBackgroundColorButton;

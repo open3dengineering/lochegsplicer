@@ -89,16 +89,40 @@ VisualizerView::~VisualizerView()
 ////////////////////////////////////////////////////////////////////////////////
 bool VisualizerView::addObject(GCodeObject* object)
 {
-   VisualizerObjectData data;
-   data.object = object;
+   VisualizerObjectData objectData;
+   objectData.object = object;
 
-   if (!generateGeometry(data))
+   int maxProgress = object->getLayerCount() - 1;
+   if (mPrefs.useDisplayLists)
    {
-      freeBuffers(data);
+      maxProgress *= 3;
+   }
+   else
+   {
+      maxProgress *= 2;
+   }
+
+   QProgressDialog progressDialog("Importing...", 0, 0, maxProgress, this);
+   progressDialog.setWindowModality(Qt::WindowModal);
+   progressDialog.setFixedSize(progressDialog.sizeHint());
+   progressDialog.show();
+
+   if (!generateGeometry(objectData, progressDialog))
+   {
+      freeBuffers(objectData);
       return false;
    }
 
-   mObjectList.push_back(data);
+   // If we are using display lists, then generate our display lists.
+   if (mPrefs.useDisplayLists)
+   {
+      if (!genObject(objectData, progressDialog))
+      {
+         return false;
+      }
+   }
+
+   mObjectList.push_back(objectData);
 
    updateGL();
 
@@ -179,11 +203,40 @@ bool VisualizerView::regenerateGeometry()
 {
    bool result = true;
 
+   // Count the total number of layers that we are generating so we can
+   // properly estimate our progress bar.
+   int maxProgress = 0;
    int objectCount = (int)mObjectList.size();
    for (int objectIndex = 0; objectIndex < objectCount; ++objectIndex)
    {
-      VisualizerObjectData& data = mObjectList[objectIndex];
-      result &= generateGeometry(data);
+      VisualizerObjectData& objectData = mObjectList[objectIndex];
+      maxProgress += objectData.object->getLayerCount() - 1;
+   }
+
+   if (mPrefs.useDisplayLists)
+   {
+      maxProgress *= 3;
+   }
+   else
+   {
+      maxProgress *= 2;
+   }
+
+   QProgressDialog progressDialog("Generating Geometry...", 0, 0, maxProgress, this);
+   progressDialog.setWindowModality(Qt::WindowModal);
+   progressDialog.setFixedSize(progressDialog.sizeHint());
+   progressDialog.show();
+
+   for (int objectIndex = 0; objectIndex < objectCount; ++objectIndex)
+   {
+      VisualizerObjectData& objectData = mObjectList[objectIndex];
+      result &= generateGeometry(objectData, progressDialog);
+
+      // If we are using display lists, then generate our display lists.
+      if (mPrefs.useDisplayLists)
+      {
+         result &= genObject(objectData, progressDialog);
+      }
    }
 
    updateGL();
@@ -305,11 +358,11 @@ void VisualizerView::initializeGL()
    glHint(GL_POLYGON_SMOOTH, GL_NICEST);
 
    static GLfloat diffuseLight[4]  = {1.0f, 1.0f, 1.0f, 1.0f};
-   static GLfloat ambientLight[4]  = {0.4f, 0.4f, 0.4f, 1.0f};
-   static GLfloat lightPosition[4] = {1.0f, 2.0f, 1.0f, 1.0f};
+   static GLfloat ambientLight[4]  = {0.0f, 0.0f, 0.0f, 1.0f};
+   static GLfloat lightPosition[4] = {0.3f, 0.7f, 0.3f, 1.0f};
 
-   glLightfv (GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-   glLightfv (GL_LIGHT0, GL_AMBIENT, ambientLight);
+   glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+   glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
  
    // Setup our vertex shader.
@@ -329,7 +382,7 @@ void VisualizerView::initializeGL()
       "varying vec3 vertex_normal;\n" \
       "void main()\n" \
       "{\n" \
-      "   float diffuse_value = max(dot(vertex_normal, vertex_light_position), 0.5);\n" \
+      "   float diffuse_value = max(dot(vertex_normal, vertex_light_position), 0.0);\n" \
       "   gl_FragColor = gl_Color * diffuse_value;\n" \
       "}\n";
 
@@ -392,7 +445,14 @@ void VisualizerView::paintGL()
    int objectCount = (int)mObjectList.size();
    for (int objectIndex = 0; objectIndex < objectCount; ++objectIndex)
    {
-      drawObject(mObjectList[objectIndex]);
+      if (mPrefs.useDisplayLists)
+      {
+         callObject(mObjectList[objectIndex]);
+      }
+      else
+      {
+         drawObject(mObjectList[objectIndex]);
+      }
    }
 
    drawPlatform();
@@ -553,7 +613,124 @@ void VisualizerView::drawPlatform()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void VisualizerView::drawObject(const VisualizerObjectData& object)
+bool VisualizerView::genObject(VisualizerObjectData& object, QProgressDialog& progressDialog)
+{
+   glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT);
+   glPushAttrib(GL_LIGHTING_BIT);
+
+   switch (mPrefs.drawQuality)
+   {
+   case DRAW_QUALITY_LOW:
+      {
+         glEnableClientState(GL_VERTEX_ARRAY);
+
+         glLineWidth(1.0f);
+
+         int layerCount = (int)object.layers.size();
+         for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
+         {
+            VisualizerBufferData& buffer = object.layers[layerIndex];
+
+            buffer.displayListIndex = glGenLists(1);
+
+            if (buffer.displayListIndex == GL_INVALID_VALUE)
+            {
+               mError = "Failed to generate display lists.";
+               return false;
+            }
+
+            glNewList(buffer.displayListIndex, GL_COMPILE);
+            glVertexPointer(3, GL_DOUBLE, 0, buffer.vertexBuffer);
+            glDrawArrays(GL_LINES, 0, buffer.vertexCount);
+            glEndList();
+
+            // Increment our progress bar.
+            progressDialog.setValue(progressDialog.value() + 1 + mPrefs.layerSkipSize);
+         }
+      }
+      break;
+
+   case DRAW_QUALITY_MED:
+      {
+         glEnable(GL_SMOOTH);
+         glShadeModel(GL_SMOOTH);
+
+         glEnable(GL_LIGHTING);
+         glEnable(GL_LIGHT0);
+
+         glEnableClientState(GL_VERTEX_ARRAY);
+         glEnableClientState(GL_NORMAL_ARRAY);
+
+         int layerCount = (int)object.layers.size();
+         for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
+         {
+            VisualizerBufferData& buffer = object.layers[layerIndex];
+
+            buffer.displayListIndex = glGenLists(1);
+
+            if (buffer.displayListIndex == GL_INVALID_VALUE)
+            {
+               mError = "Failed to generate display lists.";
+               return false;
+            }
+
+            glNewList(buffer.displayListIndex, GL_COMPILE);
+            glVertexPointer(3, GL_DOUBLE, 0, buffer.vertexBuffer);
+            glNormalPointer(GL_DOUBLE, 0, buffer.normalBuffer);
+            glDrawElements(GL_QUADS, buffer.quadCount * 4, GL_UNSIGNED_INT, buffer.indexBuffer);
+            glEndList();
+
+            // Increment our progress bar.
+            progressDialog.setValue(progressDialog.value() + 1 + mPrefs.layerSkipSize);
+         }
+      }
+      break;
+
+   case DRAW_QUALITY_HIGH:
+      {
+         glEnable(GL_SMOOTH);
+         glShadeModel(GL_SMOOTH);
+
+         glEnable(GL_LIGHTING);
+         glEnable(GL_LIGHT0);
+
+         glEnableClientState(GL_VERTEX_ARRAY);
+         glEnableClientState(GL_NORMAL_ARRAY);
+
+         int layerCount = (int)object.layers.size();
+         for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
+         {
+            VisualizerBufferData& buffer = object.layers[layerIndex];
+
+            buffer.displayListIndex = glGenLists(1);
+
+            if (buffer.displayListIndex == GL_INVALID_VALUE)
+            {
+               mError = "Failed to generate display lists.";
+               return false;
+            }
+
+            glNewList(buffer.displayListIndex, GL_COMPILE);
+            glVertexPointer(3, GL_DOUBLE, 0, buffer.vertexBuffer);
+            glNormalPointer(GL_DOUBLE, 0, buffer.normalBuffer);
+            glDrawArrays(GL_QUADS, 0, buffer.vertexCount);
+            glEndList();
+
+            // Increment our progress bar.
+            progressDialog.setValue(progressDialog.value() + 1 + mPrefs.layerSkipSize);
+         }
+      }
+      break;
+   }
+
+   glPopAttrib();
+   glPopClientAttrib();
+
+   return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void VisualizerView::callObject(const VisualizerObjectData& object)
 {
    glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT);
    glPushAttrib(GL_LIGHTING_BIT);
@@ -574,6 +751,7 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
              mPrefs.extruderList[extruderIndex].color.blueF(),
              1.0);
 
+
    switch (mPrefs.drawQuality)
    {
    case DRAW_QUALITY_LOW:
@@ -587,15 +765,60 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
          {
             const VisualizerBufferData& buffer = object.layers[layerIndex];
 
-            if (layerIndex > 0 && buffer.height <= mLayerDrawHeight)
+            if (buffer.height <= mLayerDrawHeight)
             {
-               glVertexPointer(3, GL_DOUBLE, 0, buffer.vertexBuffer);
-               glDrawArrays(GL_LINES, 0, buffer.vertexCount);
+               // If this layer is at the top, render it with a slightly darker color.
+               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               {
+                  QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
+                  glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
+               }
+
+               glCallList(buffer.displayListIndex);
+            }
+            else
+            {
+               break;
             }
          }
       }
       break;
+
    case DRAW_QUALITY_MED:
+      {
+         glEnable(GL_SMOOTH);
+         glShadeModel(GL_SMOOTH);
+
+         glEnable(GL_LIGHTING);
+         glEnable(GL_LIGHT0);
+
+         glEnableClientState(GL_VERTEX_ARRAY);
+         glEnableClientState(GL_NORMAL_ARRAY);
+
+         int layerCount = (int)object.layers.size();
+         for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
+         {
+            const VisualizerBufferData& buffer = object.layers[layerIndex];
+
+            if (buffer.height <= mLayerDrawHeight)
+            {
+               // If this layer is at the top, render it with a slightly darker color.
+               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               {
+                  QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
+                  glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
+               }
+
+               glCallList(buffer.displayListIndex);
+            }
+            else
+            {
+               break;
+            }
+         }
+      }
+      break;
+
    case DRAW_QUALITY_HIGH:
       {
          glEnable(GL_SMOOTH);
@@ -612,11 +835,20 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
          {
             const VisualizerBufferData& buffer = object.layers[layerIndex];
 
-            if (layerIndex > 0 && buffer.height <= mLayerDrawHeight)
+            if (buffer.height <= mLayerDrawHeight)
             {
-               glVertexPointer(3, GL_DOUBLE, 0, buffer.vertexBuffer);
-               glNormalPointer(GL_DOUBLE, 0, buffer.normalBuffer);
-               glDrawElements(GL_QUADS, buffer.quadCount * 4, GL_UNSIGNED_INT, buffer.indexBuffer);
+               // If this layer is at the top, render it with a slightly darker color.
+               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               {
+                  QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
+                  glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
+               }
+
+               glCallList(buffer.displayListIndex);
+            }
+            else
+            {
+               break;
             }
          }
       }
@@ -629,7 +861,139 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool VisualizerView::generateGeometry(VisualizerObjectData& data)
+void VisualizerView::drawObject(const VisualizerObjectData& object)
+{
+   glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT);
+   glPushAttrib(GL_LIGHTING_BIT);
+   glPushMatrix();
+
+   const double* offset = object.object->getOffsetPos();
+   glTranslated(offset[0], offset[1], offset[2]);
+
+   int extruderIndex = object.object->getExtruder();
+   if (extruderIndex < 0 || extruderIndex >= (int)mPrefs.extruderList.size())
+   {
+      // Default to extruder index 0 if our desired index is out of bounds.
+      extruderIndex = 0;
+   }
+
+   glColor4d(mPrefs.extruderList[extruderIndex].color.redF(),
+      mPrefs.extruderList[extruderIndex].color.greenF(),
+      mPrefs.extruderList[extruderIndex].color.blueF(),
+      1.0);
+
+   switch (mPrefs.drawQuality)
+   {
+   case DRAW_QUALITY_LOW:
+      {
+         glEnableClientState(GL_VERTEX_ARRAY);
+
+         glLineWidth(1.0f);
+
+         int layerCount = (int)object.layers.size();
+         for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
+         {
+            const VisualizerBufferData& buffer = object.layers[layerIndex];
+
+            if (buffer.height <= mLayerDrawHeight)
+            {
+               // If this layer is at the top, render it with a slightly darker color.
+               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               {
+                  QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
+                  glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
+               }
+               glVertexPointer(3, GL_DOUBLE, 0, buffer.vertexBuffer);
+               glDrawArrays(GL_LINES, 0, buffer.vertexCount);
+            }
+            else
+            {
+               break;
+            }
+         }
+      }
+      break;
+
+   case DRAW_QUALITY_MED:
+      {
+         glEnable(GL_SMOOTH);
+         glShadeModel(GL_SMOOTH);
+
+         glEnable(GL_LIGHTING);
+         glEnable(GL_LIGHT0);
+
+         glEnableClientState(GL_VERTEX_ARRAY);
+         glEnableClientState(GL_NORMAL_ARRAY);
+
+         int layerCount = (int)object.layers.size();
+         for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
+         {
+            const VisualizerBufferData& buffer = object.layers[layerIndex];
+
+            if (buffer.height <= mLayerDrawHeight)
+            {
+               // If this layer is at the top, render it with a slightly darker color.
+               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               {
+                  QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
+                  glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
+               }
+               glVertexPointer(3, GL_DOUBLE, 0, buffer.vertexBuffer);
+               glNormalPointer(GL_DOUBLE, 0, buffer.normalBuffer);
+               glDrawElements(GL_QUADS, buffer.quadCount * 4, GL_UNSIGNED_INT, buffer.indexBuffer);
+            }
+            else
+            {
+               break;
+            }
+         }
+      }
+      break;
+
+   case DRAW_QUALITY_HIGH:
+      {
+         glEnable(GL_SMOOTH);
+         glShadeModel(GL_SMOOTH);
+
+         glEnable(GL_LIGHTING);
+         glEnable(GL_LIGHT0);
+
+         glEnableClientState(GL_VERTEX_ARRAY);
+         glEnableClientState(GL_NORMAL_ARRAY);
+
+         int layerCount = (int)object.layers.size();
+         for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
+         {
+            const VisualizerBufferData& buffer = object.layers[layerIndex];
+
+            if (buffer.height <= mLayerDrawHeight)
+            {
+               // If this layer is at the top, render it with a slightly darker color.
+               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               {
+                  QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
+                  glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
+               }
+               glVertexPointer(3, GL_DOUBLE, 0, buffer.vertexBuffer);
+               glNormalPointer(GL_DOUBLE, 0, buffer.normalBuffer);
+               glDrawArrays(GL_QUADS, 0, buffer.vertexCount);
+            }
+            else
+            {
+               break;
+            }
+         }
+      }
+      break;
+   }
+
+   glPopMatrix();
+   glPopAttrib();
+   glPopClientAttrib();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool VisualizerView::generateGeometry(VisualizerObjectData& data, QProgressDialog& progressDialog)
 {
    if (!data.object)
    {
@@ -694,10 +1058,10 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data)
                   break;
                case DRAW_QUALITY_HIGH:
                   {
-                     // The line segment will consist of 8 points that
-                     // form together to make a rectangular box shape.
-                     buffer.vertexCount += 8;
-                     buffer.quadCount += 4;
+                     // The line segment will consist of four quads, each
+                     // using their own four points so they can have their
+                     // own normal values.
+                     buffer.vertexCount += 4 * 4;
                   }
                   break;
                }
@@ -710,6 +1074,9 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data)
             }
          }
       }
+
+      // Increment our progress bar.
+      progressDialog.setValue(progressDialog.value() + 1 + mPrefs.layerSkipSize);
 
       data.layers.push_back(buffer);
    }
@@ -754,11 +1121,20 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data)
          // Allocate memory for this layer.
          try
          {
-            buffer.vertexBuffer = new double[buffer.vertexCount * 3];
-            if (mPrefs.drawQuality != DRAW_QUALITY_LOW)
+            switch (mPrefs.drawQuality)
             {
-               buffer.normalBuffer = new double[buffer.vertexCount * 3];
-               buffer.indexBuffer = new unsigned int[buffer.quadCount * 4];
+            case DRAW_QUALITY_MED:
+               {
+                  buffer.indexBuffer = new unsigned int[buffer.quadCount * 4];
+               }
+            case DRAW_QUALITY_HIGH:
+               {
+                  buffer.normalBuffer = new double[buffer.vertexCount * 3];
+               }
+            case DRAW_QUALITY_LOW:
+               {
+                  buffer.vertexBuffer = new double[buffer.vertexCount * 3];
+               }
             }
          }
          catch (...)
@@ -796,7 +1172,6 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data)
                      break;
 
                   case DRAW_QUALITY_MED:
-                  case DRAW_QUALITY_HIGH:
                      {
                         // Set up a rotation matrix
                         QMatrix4x4 rot;
@@ -840,20 +1215,6 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data)
                         buffer.indexBuffer[quadIndex + 3] = vertexIndex + POINT_SECOND_BOT_LEFT;
                         quadIndex += 4;
 
-                        //// First cap
-                        //buffer.indexBuffer[quadIndex + 0] = vertexIndex + POINT_FIRST_TOP_LEFT;
-                        //buffer.indexBuffer[quadIndex + 1] = vertexIndex + POINT_FIRST_TOP_RIGHT;
-                        //buffer.indexBuffer[quadIndex + 2] = vertexIndex + POINT_FIRST_BOT_RIGHT;
-                        //buffer.indexBuffer[quadIndex + 3] = vertexIndex + POINT_FIRST_BOT_LEFT;
-                        //quadIndex += 4;
-
-                        //// Second cap
-                        //buffer.indexBuffer[quadIndex + 0] = vertexIndex + POINT_SECOND_TOP_RIGHT;
-                        //buffer.indexBuffer[quadIndex + 1] = vertexIndex + POINT_SECOND_TOP_LEFT;
-                        //buffer.indexBuffer[quadIndex + 2] = vertexIndex + POINT_SECOND_BOT_LEFT;
-                        //buffer.indexBuffer[quadIndex + 3] = vertexIndex + POINT_SECOND_BOT_RIGHT;
-                        //quadIndex += 4;
-
                         // Generate our 8 vertices for this rectangle segment.
                         addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 + up * radius - right * radius - vec * radius);
                         addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 + up * radius + right * radius - vec * radius);
@@ -877,6 +1238,67 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data)
                         addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, (-up + right + vec).normalized());
                      }
                      break;
+
+                  case DRAW_QUALITY_HIGH:
+                     {
+                        // Set up a rotation matrix
+                        QMatrix4x4 rot;
+                        rot.lookAt(p2 - p1, QVector3D(0.0, 0.0, 0.0), up);
+
+                        QVector3D right;
+                        right.setX(1.0);
+                        right = right * rot;
+
+                        QVector3D vec = (p2 - p1).normalized();
+                        QVector3D norm;
+
+                        int vertexIndex = pointIndex / 3;
+
+                        // Left.
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 + up * radius - right * radius - vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 - up * radius - right * radius - vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 - up * radius * 0.95 - right * radius + vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 + up * radius * 0.95 - right * radius + vec * radius);
+
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, -right);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, -right);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, -right);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, -right);
+
+                        // Top.
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 + up * radius + right * radius - vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 + up * radius - right * radius - vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 + up * radius * 0.95 - right * radius + vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 + up * radius * 0.95 + right * radius + vec * radius);
+
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, up);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, up);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, up);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, up);
+
+                        // Right.
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 - up * radius + right * radius - vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 + up * radius + right * radius - vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 + up * radius * 0.95 + right * radius + vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 - up * radius * 0.95 + right * radius + vec * radius);
+
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, right);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, right);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, right);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, right);
+
+                        // Bottom.
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 - up * radius - right * radius - vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p1 - up * radius + right * radius - vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 - up * radius * 0.95 + right * radius + vec * radius);
+                        addGeometryPoint(&buffer.vertexBuffer[pointIndex], pointIndex, p2 - up * radius * 0.95 - right * radius + vec * radius);
+
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, -up);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, -up);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, -up);
+                        addGeometryPoint(&buffer.normalBuffer[normalIndex], normalIndex, -up);
+                     }
+                     break;
                   }
                }
 
@@ -892,6 +1314,9 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data)
                }
             }
          }
+
+         // Increment our progress bar.
+         progressDialog.setValue(progressDialog.value() + 1 + mPrefs.layerSkipSize);
 
          // Just a simple check to make sure we actually used the proper number of vertices.
          if (buffer.vertexCount * 3 != pointIndex ||
@@ -930,6 +1355,12 @@ void VisualizerView::freeBuffers(VisualizerObjectData& data)
    for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
    {
       VisualizerBufferData& buffer = data.layers[layerIndex];
+
+      if (buffer.displayListIndex != GL_INVALID_VALUE)
+      {
+         glDeleteLists(buffer.displayListIndex, 1);
+      }
+
       buffer.free();
    }
 

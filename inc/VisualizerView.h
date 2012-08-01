@@ -28,7 +28,7 @@
 
 class GCodeObject;
 struct ExtruderData;
-
+class QProgressDialog;
 
 class VisualizerView : public QGLWidget
 {
@@ -94,6 +94,8 @@ protected:
    void mouseMoveEvent(QMouseEvent *event);
    void wheelEvent(QWheelEvent* event);
 
+   bool genObject(VisualizerObjectData& object, QProgressDialog& progressDialog);
+   void callObject(const VisualizerObjectData& object);
    void drawObject(const VisualizerObjectData& object);
    void drawPlatform();
 
@@ -102,7 +104,7 @@ private:
    /**
     * Generate geometry data for the given object.
     */
-   bool generateGeometry(VisualizerObjectData& data);
+   bool generateGeometry(VisualizerObjectData& data, QProgressDialog& progressDialog);
    void addGeometryPoint(double* buffer, int& index, const QVector3D& point);
 
    void freeBuffers(VisualizerObjectData& data);

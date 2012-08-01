@@ -30,7 +30,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 MainWindow::MainWindow()
-   : mOptionsButton(NULL)
+   : mPreferencesButton(NULL)
    , mHelpButton(NULL)
    , mMainSplitter(NULL)
    , mVisualizerView(NULL)
@@ -88,7 +88,8 @@ void MainWindow::onOptionsPressed()
    {
       // Check for draw quality changes
       bool regenerateGeometry = false;
-      if (mPrefs.drawQuality != dlg.getPreferences().drawQuality ||
+      if (mPrefs.useDisplayLists != dlg.getPreferences().useDisplayLists ||
+          mPrefs.drawQuality != dlg.getPreferences().drawQuality ||
           mPrefs.layerSkipSize != dlg.getPreferences().layerSkipSize)
       {
          regenerateGeometry = true;
@@ -96,8 +97,6 @@ void MainWindow::onOptionsPressed()
 
       // Finalize the properties.
       mPrefs = dlg.getPreferences();
-
-      mVisualizerView->setShaderEnabled(mPrefs.drawQuality == DRAW_QUALITY_HIGH);
 
       int extruderCount = (int)mPrefs.extruderList.size() - 1;
       int count = mObjectListWidget->rowCount();
@@ -109,6 +108,8 @@ void MainWindow::onOptionsPressed()
 
       if (regenerateGeometry)
       {
+         //mVisualizerView->setShaderEnabled(mPrefs.drawQuality == DRAW_QUALITY_HIGH);
+
          if (!mVisualizerView->regenerateGeometry())
          {
             QMessageBox::critical(this, "Failure!", mVisualizerView->getError(), QMessageBox::Ok);
@@ -201,11 +202,14 @@ void MainWindow::onAddPressed()
       // Attempt to load our given file.
       GCodeObject* newObject = new GCodeObject(mPrefs);
 
-      if (!newObject->loadFile(fileName))
+      if (!newObject->loadFile(fileName, this))
       {
-         // Failed to load the file.
-         QString errorStr = "Failed to load file \'" + fileName + "\' with error: " + newObject->getError();
-         QMessageBox::critical(this, "Failure!", errorStr, QMessageBox::Ok, QMessageBox::NoButton);
+         if (!newObject->getError().isEmpty())
+         {
+            // Failed to load the file.
+            QString errorStr = "Failed to load file \'" + fileName + "\' with error: " + newObject->getError();
+            QMessageBox::critical(this, "Failure!", errorStr, QMessageBox::Ok, QMessageBox::NoButton);
+         }
          delete newObject;
          return;
       }
@@ -519,9 +523,9 @@ void MainWindow::setupUI()
    QHBoxLayout* toolLayout = new QHBoxLayout();
    rightLayout->addLayout(toolLayout);
 
-   mOptionsButton = new QPushButton("Options");
-   mOptionsButton->setShortcut(QKeySequence("Ctrl+O"));
-   toolLayout->addWidget(mOptionsButton);
+   mPreferencesButton = new QPushButton("Preferences");
+   mPreferencesButton->setShortcut(QKeySequence("Ctrl+P"));
+   toolLayout->addWidget(mPreferencesButton);
 
    mHelpButton = new QPushButton("Help");
    mHelpButton->setShortcut(QKeySequence("F1"));
@@ -574,6 +578,8 @@ void MainWindow::setupUI()
    mPlaterYPosSpin->setMaximum(mPrefs.platformHeight + 50.0);
    mPlaterXPosSpin->setSingleStep(0.5);
    mPlaterYPosSpin->setSingleStep(0.5);
+   mPlaterXPosSpin->setToolTip("X Coordinate to center the object.");
+   mPlaterYPosSpin->setToolTip("Y Coordinate to center the object.");
    platerLayout->addWidget(platerXLabel, 0, 0, 1, 1);
    platerLayout->addWidget(mPlaterXPosSpin, 0, 1, 1, 1);
    platerLayout->addWidget(platerYLabel, 0, 2, 1, 1);
@@ -614,7 +620,7 @@ void MainWindow::setupUI()
 ////////////////////////////////////////////////////////////////////////////////
 void MainWindow::setupConnections()
 {
-   connect(mOptionsButton,          SIGNAL(pressed()),               this, SLOT(onOptionsPressed()));
+   connect(mPreferencesButton,          SIGNAL(pressed()),               this, SLOT(onOptionsPressed()));
    connect(mHelpButton,             SIGNAL(pressed()),               this, SLOT(onHelpPressed()));
    connect(mLayerSlider,            SIGNAL(valueChanged(int)),       this, SLOT(onLayerSliderChanged(int)));
    connect(mObjectListWidget,       SIGNAL(itemSelectionChanged()),  this, SLOT(onObjectSelectionChanged()));

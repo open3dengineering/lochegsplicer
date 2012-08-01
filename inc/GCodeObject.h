@@ -35,7 +35,7 @@ public:
    /**
     * Load a specified gcode file.
     */
-   bool loadFile(const QString &fileName);
+   bool loadFile(const QString &fileName, QWidget* parent = NULL);
 
    const double* getMinBounds() const;
    const double* getMaxBounds() const;

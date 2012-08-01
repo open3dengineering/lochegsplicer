@@ -80,7 +80,7 @@ private:
 
    PreferenceData    mPrefs;
 
-   QPushButton*      mOptionsButton;
+   QPushButton*      mPreferencesButton;
    QPushButton*      mHelpButton;
 
    QSplitter*        mMainSplitter;
