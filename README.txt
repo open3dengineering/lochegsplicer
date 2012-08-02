@@ -28,8 +28,9 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 Introduction:
 -------------
 
-LocheGSplicer is a splicer program intended to splice together multiple gcode
-files for use with 3D Printers that have multiple extruders.
+LocheGSplicer is primarily designed to splice multiple gcode files into a
+single file meant for multiple extruder printing.  However, it can also be
+used as a high-res gcode visualizer as well as a single extrusion plater.
 
 
 Building from Source:
