@@ -1,0 +1,5 @@
+Here is a list of all major changes that went into each release version.
+
+Version: Beta 004:
+- Ability to use opengl draw lists to handle rendering.
+- Improved lighting calculations on high draw quality.

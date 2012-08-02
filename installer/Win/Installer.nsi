@@ -28,7 +28,7 @@
 ;!define /date NOW "%m-%d-%Y_%H%M%S"
 
 !ifndef VERSION
-  !define VERSION "Beta-003"
+  !define VERSION "Beta-004"
 !endif
 
 ; HM NIS Edit Wizard helper defines
@@ -108,6 +108,7 @@ Section "Application" SEC01
   ; Batch file
   File "LocheGSplicer${CONFIG_NAME}.bat"
   File "..\..\README.txt"
+  File "..\..\VersionLog.txt"
 
   ; Application binaries
   SetOutPath "$INSTDIR\bin"
