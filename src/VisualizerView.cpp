@@ -102,7 +102,7 @@ bool VisualizerView::addObject(GCodeObject* object)
       maxProgress *= 2;
    }
 
-   QProgressDialog progressDialog("Importing...", 0, 0, maxProgress, this);
+   QProgressDialog progressDialog("Generating Geometry...", 0, 0, maxProgress, this);
    progressDialog.setWindowModality(Qt::WindowModal);
    progressDialog.setFixedSize(progressDialog.sizeHint());
    progressDialog.show();
@@ -364,7 +364,7 @@ void VisualizerView::initializeGL()
    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
    glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
- 
+
    // Setup our vertex shader.
    const static GLchar* vertCode = \
       "varying vec3 vertex_light_position;" \
@@ -1161,7 +1161,7 @@ bool VisualizerView::generateGeometry(VisualizerObjectData& data, QProgressDialo
                {
                   QVector3D p1 = QVector3D(lastPos[X], lastPos[Y], lastPos[Z]);
                   QVector3D p2 = QVector3D(code.axisValue[X], code.axisValue[Y], code.axisValue[Z]);
-                  
+
                   switch (mPrefs.drawQuality)
                   {
                   case DRAW_QUALITY_LOW:
