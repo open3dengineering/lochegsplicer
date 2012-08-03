@@ -214,8 +214,10 @@ struct ExtruderData
       }
 
       flow = 1.0;
-      idleTemp = 220.0;
-      printTemp = 220.0;
+      idleTemp = 0.0;
+      printTemp = 0.0;
+      retraction = 3.0;
+      primer = 3.0;
       color = Qt::white;
    }
 
@@ -228,6 +230,8 @@ struct ExtruderData
       flow = flowRate;
       idleTemp = 0.0;
       printTemp = 0.0;
+      retraction = 3.0;
+      primer = 3.0;
       color = col;
    }
 
@@ -235,6 +239,8 @@ struct ExtruderData
    double flow;
    double idleTemp;
    double printTemp;
+   double retraction;
+   double primer;
    QColor color;
 };
 

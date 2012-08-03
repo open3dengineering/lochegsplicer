@@ -163,6 +163,10 @@ void PreferencesDialog::onExtruderSelected(int index)
    mExtruderIdleTempSpin->setValue(data.idleTemp);
    mExtruderPrintTempSpin->setEnabled(true);
    mExtruderPrintTempSpin->setValue(data.printTemp);
+   mExtruderRetractSpin->setEnabled(true);
+   mExtruderRetractSpin->setValue(data.retraction);
+   mExtruderPrimerSpin->setEnabled(true);
+   mExtruderPrimerSpin->setValue(data.primer);
    mExtruderColorButton->setEnabled(true);
    QPixmap pix = QPixmap(QSize(16, 16));
    pix.fill(data.color);
@@ -281,6 +285,32 @@ void PreferencesDialog::onExtruderPrintTempChanged(double value)
    ExtruderData& data = mPrefs.extruderList[mCurrentExtruder];
 
    data.printTemp = value;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExtruderRetractChanged(double value)
+{
+   if (mCurrentExtruder < 0 || mCurrentExtruder >= (int)mPrefs.extruderList.size())
+   {
+      return;
+   }
+
+   ExtruderData& data = mPrefs.extruderList[mCurrentExtruder];
+
+   data.retraction = value;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExtruderPrimerChanged(double value)
+{
+   if (mCurrentExtruder < 0 || mCurrentExtruder >= (int)mPrefs.extruderList.size())
+   {
+      return;
+   }
+
+   ExtruderData& data = mPrefs.extruderList[mCurrentExtruder];
+
+   data.primer = value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -511,7 +541,7 @@ void PreferencesDialog::setupUI()
 
       mExtruderList = new QListWidget();
       mExtruderList->setToolTip("List of all extruders that the printer controls.");
-      extruderLayout->addWidget(mExtruderList, 0, 0, 6, 2);
+      extruderLayout->addWidget(mExtruderList, 0, 0, 8, 2);
 
       // Extruder Properties.
       QLabel* extruderOffsetXLabel = new QLabel("Offset X: ");
@@ -526,6 +556,10 @@ void PreferencesDialog::setupUI()
       extruderIdleTempLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
       QLabel* extruderPrintTempLabel = new QLabel("Print Temp: ");
       extruderPrintTempLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+      QLabel* extruderRetractLabel = new QLabel("Retraction: ");
+      extruderRetractLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+      QLabel* extruderPrimerLabel = new QLabel("Primer: ");
+      extruderPrimerLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
 
       mExtruderOffsetXSpin = new QDoubleSpinBox();
       mExtruderOffsetXSpin->setMinimum(0.0);
@@ -556,6 +590,14 @@ void PreferencesDialog::setupUI()
       mExtruderPrintTempSpin->setMinimum(0.0);
       mExtruderPrintTempSpin->setMaximum(1000.0);
       mExtruderPrintTempSpin->setToolTip("The temperature when this extruder is printing (0 = Keep current temp).");
+      mExtruderRetractSpin = new QDoubleSpinBox();
+      mExtruderRetractSpin->setMinimum(0.0);
+      mExtruderRetractSpin->setMaximum(1000.0);
+      mExtruderRetractSpin->setToolTip("The amount to retract the extruder when it is moving into idle mode.");
+      mExtruderPrimerSpin = new QDoubleSpinBox();
+      mExtruderPrimerSpin->setMinimum(0.0);
+      mExtruderPrimerSpin->setMaximum(1000.0);
+      mExtruderPrimerSpin->setToolTip("The amount to prime the extruder when it is being restored to print mode.");
       mExtruderColorButton = new QPushButton("Color");
       QPixmap pix = QPixmap(QSize(16, 16));
       pix.fill(Qt::darkGray);
@@ -567,7 +609,7 @@ void PreferencesDialog::setupUI()
       line->setGeometry(QRect(0, 0, 3, 1000));
       line->setFrameShape(QFrame::VLine);
       line->setFrameShadow(QFrame::Sunken);
-      extruderLayout->addWidget(line,                  0, 2, 7, 1);
+      extruderLayout->addWidget(line,                  0, 2, 9, 1);
 
       extruderLayout->addWidget(extruderOffsetXLabel,  0, 3, 1, 1);
       extruderLayout->addWidget(mExtruderOffsetXSpin,  0, 4, 1, 1);
@@ -581,15 +623,19 @@ void PreferencesDialog::setupUI()
       extruderLayout->addWidget(mExtruderIdleTempSpin, 4, 4, 1, 1);
       extruderLayout->addWidget(extruderPrintTempLabel,5, 3, 1, 1);
       extruderLayout->addWidget(mExtruderPrintTempSpin,5, 4, 1, 1);
-      extruderLayout->addWidget(mExtruderColorButton,  6, 3, 1, 2);
+      extruderLayout->addWidget(extruderRetractLabel,  6, 3, 1, 1);
+      extruderLayout->addWidget(mExtruderRetractSpin,  6, 4, 1, 1);
+      extruderLayout->addWidget(extruderPrimerLabel,   7, 3, 1, 1);
+      extruderLayout->addWidget(mExtruderPrimerSpin,   7, 4, 1, 1);
+      extruderLayout->addWidget(mExtruderColorButton,  8, 3, 1, 2);
 
       // Add/Remove buttons.
       mAddExtruderButton = new QPushButton("Add");
       mAddExtruderButton->setToolTip("Add an extruder to the list.");
       mRemoveExtruderButton = new QPushButton("Remove");
       mRemoveExtruderButton->setToolTip("Remove the last extruder from the list.");
-      extruderLayout->addWidget(mAddExtruderButton, 6, 0, 1, 1);
-      extruderLayout->addWidget(mRemoveExtruderButton, 6, 1, 1, 1);
+      extruderLayout->addWidget(mAddExtruderButton, 8, 0, 1, 1);
+      extruderLayout->addWidget(mRemoveExtruderButton, 8, 1, 1, 1);
 
       if (mPrefs.extruderList.empty())
       {
@@ -735,6 +781,8 @@ void PreferencesDialog::setupConnections()
    connect(mExtruderFlowSpin,                SIGNAL(valueChanged(double)),       this, SLOT(onExtruderFlowChanged(double)));
    connect(mExtruderIdleTempSpin,            SIGNAL(valueChanged(double)),       this, SLOT(onExtruderIdleTempChanged(double)));
    connect(mExtruderPrintTempSpin,           SIGNAL(valueChanged(double)),       this, SLOT(onExtruderPrintTempChanged(double)));
+   connect(mExtruderRetractSpin,             SIGNAL(valueChanged(double)),       this, SLOT(onExtruderRetractChanged(double)));
+   connect(mExtruderPrimerSpin,              SIGNAL(valueChanged(double)),       this, SLOT(onExtruderPrimerChanged(double)));
    connect(mExtruderColorButton,             SIGNAL(pressed()),                  this, SLOT(onExtruderColorPressed()));
    
    connect(mPlatformWidthSpin,               SIGNAL(valueChanged(double)),       this, SLOT(onPlatformWidthChanged(double)));
@@ -770,6 +818,7 @@ void PreferencesDialog::updateUI()
    mSkirtDistanceSpin->setValue(mPrefs.skirtDistance);
 
    // Printer Tab.
+   ExtruderData defaults;
    mExtruderList->clear();
    int extruderCount = (int)mPrefs.extruderList.size();
    for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
@@ -782,13 +831,17 @@ void PreferencesDialog::updateUI()
    mExtruderFlowSpin->setEnabled(false);
    mExtruderIdleTempSpin->setEnabled(false);
    mExtruderPrintTempSpin->setEnabled(false);
+   mExtruderRetractSpin->setEnabled(false);
+   mExtruderPrimerSpin->setEnabled(false);
    mExtruderColorButton->setEnabled(false);
-   mExtruderOffsetXSpin->setValue(0.0);
-   mExtruderOffsetYSpin->setValue(0.0);
-   mExtruderOffsetZSpin->setValue(0.0);
-   mExtruderFlowSpin->setValue(1.0);
-   mExtruderIdleTempSpin->setValue(0.0);
-   mExtruderPrintTempSpin->setValue(0.0);
+   mExtruderOffsetXSpin->setValue(defaults.offset[X]);
+   mExtruderOffsetYSpin->setValue(defaults.offset[Y]);
+   mExtruderOffsetZSpin->setValue(defaults.offset[Z]);
+   mExtruderFlowSpin->setValue(defaults.flow);
+   mExtruderIdleTempSpin->setValue(defaults.idleTemp);
+   mExtruderPrintTempSpin->setValue(defaults.printTemp);
+   mExtruderRetractSpin->setValue(defaults.retraction);
+   mExtruderPrimerSpin->setValue(defaults.primer);
    QPixmap pix = QPixmap(QSize(16, 16));
    pix.fill(Qt::darkGray);
    mExtruderColorButton->setIcon(QIcon(pix));
@@ -870,6 +923,8 @@ void PreferencesDialog::storeLastPreferences()
          settings.setValue("Flow", data.flow);
          settings.setValue("IdleTemp", data.idleTemp);
          settings.setValue("PrintTemp", data.printTemp);
+         settings.setValue("Retraction", data.retraction);
+         settings.setValue("Primer", data.primer);
          settings.setValue("Color", data.color);
       }
       settings.endArray();
@@ -922,6 +977,8 @@ bool PreferencesDialog::restoreLastPreferences(PreferenceData& prefs)
          data.flow = settings.value("Flow", defaultExtruder.flow).toDouble();
          data.idleTemp = settings.value("IdleTemp", defaultExtruder.idleTemp).toDouble();
          data.printTemp = settings.value("PrintTemp", defaultExtruder.printTemp).toDouble();
+         data.retraction = settings.value("Retraction", defaultExtruder.retraction).toDouble();
+         data.primer = settings.value("Primer", defaultExtruder.primer).toDouble();
          data.color = settings.value("Color", defaultExtruder.color).value<QColor>();
       }
       settings.endArray();

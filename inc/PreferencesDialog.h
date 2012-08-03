@@ -80,6 +80,8 @@ public slots:
    void onExtruderFlowChanged(double value);
    void onExtruderIdleTempChanged(double value);
    void onExtruderPrintTempChanged(double value);
+   void onExtruderRetractChanged(double value);
+   void onExtruderPrimerChanged(double value);
    void onExtruderColorPressed();
    void onPlatformWidthChanged(double value);
    void onPlatformHeightChanged(double value);
@@ -141,6 +143,8 @@ private:
    QDoubleSpinBox*   mExtruderFlowSpin;
    QDoubleSpinBox*   mExtruderIdleTempSpin;
    QDoubleSpinBox*   mExtruderPrintTempSpin;
+   QDoubleSpinBox*   mExtruderRetractSpin;
+   QDoubleSpinBox*   mExtruderPrimerSpin;
    QPushButton*      mExtruderColorButton;
    QDoubleSpinBox*   mPlatformWidthSpin;
    QDoubleSpinBox*   mPlatformHeightSpin;
