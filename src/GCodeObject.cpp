@@ -693,13 +693,13 @@ bool GCodeObject::healLayerRetraction()
                   return false;
                }
 
-               double retractionAmount = mPrefs.retraction;
-               if (mPrefs.retraction < 0.0)
+               double retractionAmount = mPrefs.importRetraction;
+               if (mPrefs.importRetraction < 0.0)
                {
                   retractionAmount = -code.axisValue[E];
                }
-               double primeAmount = mPrefs.primer;
-               if (mPrefs.primer < 0.0)
+               double primeAmount = mPrefs.importPrimer;
+               if (mPrefs.importPrimer < 0.0)
                {
                   primeAmount = -code.axisValue[E];
                }
@@ -736,13 +736,13 @@ bool GCodeObject::healLayerRetraction()
             // need to check the next layer for the prime.
             if (code.axisValue[E] < 0.0)
             {
-               double retractionAmount = mPrefs.retraction;
-               if (mPrefs.retraction < 0.0)
+               double retractionAmount = mPrefs.importRetraction;
+               if (mPrefs.importRetraction < 0.0)
                {
                   retractionAmount = -code.axisValue[E];
                }
-               double primeAmount = mPrefs.primer;
-               if (mPrefs.primer < 0.0)
+               double primeAmount = mPrefs.importPrimer;
+               if (mPrefs.importPrimer < 0.0)
                {
                   primeAmount = -code.axisValue[E];
                }

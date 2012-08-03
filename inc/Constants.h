@@ -314,6 +314,7 @@ struct PreferenceData
 
       // Splicing Properties
       customPrefixCode.clear();
+      exportImportedStartCode = true;
       exportComments = true;
       exportAllAxes = false;
       printSkirt = true;
@@ -329,8 +330,8 @@ struct PreferenceData
       exportAbsoluteMode = true;
       exportAbsoluteEMode = true;
 
-      retraction = -1.0;
-      primer = -1.0;
+      importRetraction = -1.0;
+      importPrimer = -1.0;
    }
 
    // Editor properties.
@@ -341,6 +342,7 @@ struct PreferenceData
 
    // Splicing properties.
    QString customPrefixCode;
+   bool exportImportedStartCode;
    bool exportComments;
    bool exportAllAxes;
    bool printSkirt;
@@ -354,8 +356,8 @@ struct PreferenceData
    // Advanced properties.
    bool exportAbsoluteMode;
    bool exportAbsoluteEMode;
-   double retraction;
-   double primer;
+   double importRetraction;
+   double importPrimer;
 };
 
 #endif  // CONSTANTS_H

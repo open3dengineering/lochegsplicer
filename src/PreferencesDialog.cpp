@@ -27,6 +27,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 PreferencesDialog::PreferencesDialog(PreferenceData& prefs)
    : mPrefs(prefs)
+   , mCurrentExtruder(-1)
 {
    setupUI();
    setupConnections();
@@ -106,6 +107,12 @@ void PreferencesDialog::onBackgroundColorPressed()
 void PreferencesDialog::onPrefixChanged()
 {
    mPrefs.customPrefixCode = mGCodePrefixEdit->toPlainText();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExportImportedStartCodeChanged(int state)
+{
+   mPrefs.exportImportedStartCode = (state == Qt::Checked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -307,11 +314,35 @@ void PreferencesDialog::onPlatformHeightChanged(double value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExportAbsoluteModeChanged(int state)
+{
+   mPrefs.exportAbsoluteMode = (state == Qt::Checked);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExportAbsoluteEModeChanged(int state)
+{
+   mPrefs.exportAbsoluteEMode = (state == Qt::Checked);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onImportRetractionChanged(double value)
+{
+   mPrefs.importRetraction = value;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onImportPrimerChanged(double value)
+{
+   mPrefs.importPrimer = value;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onDefaultPressed()
 {
    mPrefs = PreferenceData();
 
-   setBackgroundColor(mPrefs.backgroundColor);
+   updateUI();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -362,7 +393,6 @@ void PreferencesDialog::setupUI()
       renderingLayout->addWidget(useDisplayListsLabel, 0, 0, 1, 1);
 
       mUseDisplayListsCheckbox = new QCheckBox();
-      mUseDisplayListsCheckbox->setChecked(mPrefs.useDisplayLists);
       mUseDisplayListsCheckbox->setToolTip("Depending on hardware configurations of your device, this may improve your rendering speed at the cost of memory.");
       renderingLayout->addWidget(mUseDisplayListsCheckbox, 0, 1, 1, 2);
 
@@ -374,7 +404,6 @@ void PreferencesDialog::setupUI()
       mDrawQualityCombo->addItem("Low");
       mDrawQualityCombo->addItem("Medium");
       mDrawQualityCombo->addItem("High");
-      mDrawQualityCombo->setCurrentIndex(mPrefs.drawQuality);
       mDrawQualityCombo->setToolTip("Set the quality of the geometry to be rendered.");
       renderingLayout->addWidget(mDrawQualityCombo, 1, 1, 1, 2);
 
@@ -383,14 +412,12 @@ void PreferencesDialog::setupUI()
       renderingLayout->addWidget(layerSkipLabel, 2, 0, 1, 1);
 
       mLayerSkipSpin = new QSpinBox();
-      mLayerSkipSpin->setValue(mPrefs.layerSkipSize);
       mLayerSkipSpin->setToolTip("This will skip the generation of geometry for every # of layers.");
       renderingLayout->addWidget(mLayerSkipSpin, 2, 1, 1, 2);
 
       mBackgroundColorButton = new QPushButton("Background Color");
       mBackgroundColorButton->setToolTip("The background color of the visualizer window.");
       renderingLayout->addWidget(mBackgroundColorButton, 3, 0, 1, 3);
-      setBackgroundColor(mPrefs.backgroundColor);
       renderingLayout->setRowStretch(1, 0);
 
       renderingLayout->setColumnStretch(0, 1);
@@ -415,25 +442,25 @@ void PreferencesDialog::setupUI()
       QVBoxLayout* gcodeLayout = new QVBoxLayout();
       gcodeGroup->setLayout(gcodeLayout);
 
+      // Export start code from imported objects.
+      mExportImportedStartCodeCheckbox = new QCheckBox("Export Imported Start Code");
+      mExportImportedStartCodeCheckbox->setToolTip("This option will include the start code found in the first imported object.  The code\nwill appear at the beginning of the file followed by the below GCode Prefix.");
+      gcodeLayout->addWidget(mExportImportedStartCodeCheckbox);
+
       QLabel* prefixLabel = new QLabel("GCode Prefix:");
       gcodeLayout->addWidget(prefixLabel);
 
       mGCodePrefixEdit = new QTextEdit();
       mGCodePrefixEdit->setToolTip("GCode that will be inserted at the beginning of the spliced output file.");
       gcodeLayout->addWidget(mGCodePrefixEdit);
-      mGCodePrefixEdit->setText(mPrefs.customPrefixCode);
 
       // Export comments and all axes.
       QHBoxLayout* exportLayout = new QHBoxLayout();
       gcodeLayout->addLayout(exportLayout);
 
       mExportCommentsCheckbox = new QCheckBox("Export Comments");
-      mExportCommentsCheckbox->setChecked(mPrefs.exportComments);
-      mExportCommentsCheckbox->setLayoutDirection(Qt::RightToLeft);
       mExportCommentsCheckbox->setToolTip("This will include comments in the spliced output file.");
       mExportAllAxesCheckbox = new QCheckBox("Export All Axes");
-      mExportAllAxesCheckbox->setChecked(mPrefs.exportAllAxes);
-      mExportAllAxesCheckbox->setLayoutDirection(Qt::RightToLeft);
       mExportAllAxesCheckbox->setToolTip("This option will include gcode for all axes even if they are unchanged.");
       exportLayout->addWidget(mExportCommentsCheckbox);
       exportLayout->addWidget(mExportAllAxesCheckbox);
@@ -446,7 +473,6 @@ void PreferencesDialog::setupUI()
       skirtGroup->setLayout(skirtLayout);
 
       mPrintSkirtCheckbox = new QCheckBox("Enable Skirt");
-      mPrintSkirtCheckbox->setChecked(mPrefs.printSkirt);
       mPrintSkirtCheckbox->setLayoutDirection(Qt::RightToLeft);
       mPrintSkirtCheckbox->setToolTip("If enabled, a custom skirt will be generated in the spliced output file, one skirt loop per extruder.");
       QLabel* skirtDistanceLabel = new QLabel("Skirt Distance: ");
@@ -455,7 +481,6 @@ void PreferencesDialog::setupUI()
       mSkirtDistanceSpin->setSuffix("mm");
       mSkirtDistanceSpin->setMinimum(0.0);
       mSkirtDistanceSpin->setMaximum(100.0);
-      mSkirtDistanceSpin->setValue(mPrefs.skirtDistance);
       mSkirtDistanceSpin->setToolTip("The distance (in mm) that the skirt will be generated.");
       skirtLayout->addWidget(mPrintSkirtCheckbox);
       skirtLayout->addWidget(skirtDistanceLabel);
@@ -479,11 +504,6 @@ void PreferencesDialog::setupUI()
 
       mExtruderList = new QListWidget();
       mExtruderList->setToolTip("List of all extruders that the printer controls.");
-      int extruderCount = (int)mPrefs.extruderList.size();
-      for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
-      {
-         mExtruderList->addItem("Extruder: " + QString::number(extruderIndex + 1));
-      }
       extruderLayout->addWidget(mExtruderList, 0, 0, 6, 2);
 
       // Extruder Properties.
@@ -503,41 +523,32 @@ void PreferencesDialog::setupUI()
       mExtruderOffsetXSpin = new QDoubleSpinBox();
       mExtruderOffsetXSpin->setMinimum(0.0);
       mExtruderOffsetXSpin->setMaximum(1000.0);
-      mExtruderOffsetXSpin->setValue(16.0);
-      mExtruderOffsetXSpin->setEnabled(false);
       mExtruderOffsetXSpin->setToolTip("The X coordinate offset of this extruder relative to the primary.");
       mExtruderOffsetYSpin = new QDoubleSpinBox();
       mExtruderOffsetYSpin->setMinimum(0.0);
       mExtruderOffsetYSpin->setMaximum(1000.0);
-      mExtruderOffsetYSpin->setEnabled(false);
       mExtruderOffsetYSpin->setToolTip("The Y coordinate offset of this extruder relative to the primary.");
       mExtruderOffsetZSpin = new QDoubleSpinBox();
       mExtruderOffsetZSpin->setMinimum(0.0);
       mExtruderOffsetZSpin->setMaximum(1000.0);
-      mExtruderOffsetZSpin->setEnabled(false);
       mExtruderOffsetZSpin->setToolTip("The Z coordinate offset of this extruder relative to the primary.");
       mExtruderFlowSpin = new QDoubleSpinBox();
       mExtruderFlowSpin->setMinimum(0.0);
       mExtruderFlowSpin->setMaximum(100.0);
       mExtruderFlowSpin->setSingleStep(0.1);
-      mExtruderFlowSpin->setValue(1.0);
-      mExtruderFlowSpin->setEnabled(false);
       mExtruderFlowSpin->setToolTip("A multiplier to apply to the extrusion flow values of the spliced output file.");
       mExtruderIdleTempSpin = new QDoubleSpinBox();
       mExtruderIdleTempSpin->setMinimum(0.0);
       mExtruderIdleTempSpin->setMaximum(1000.0);
-      mExtruderIdleTempSpin->setEnabled(false);
       mExtruderIdleTempSpin->setToolTip("The temperature when this extruder is idle (0 = Keep current temp).");
       mExtruderPrintTempSpin = new QDoubleSpinBox();
       mExtruderPrintTempSpin->setMinimum(0.0);
       mExtruderPrintTempSpin->setMaximum(1000.0);
-      mExtruderPrintTempSpin->setEnabled(false);
       mExtruderPrintTempSpin->setToolTip("The temperature when this extruder is printing (0 = Keep current temp).");
       mExtruderColorButton = new QPushButton("Color");
       QPixmap pix = QPixmap(QSize(16, 16));
       pix.fill(Qt::darkGray);
       mExtruderColorButton->setIcon(QIcon(pix));
-      mExtruderColorButton->setEnabled(false);
       mExtruderColorButton->setToolTip("The color to render the geometry for anything printed with this extruder.");
 
       QFrame* line = new QFrame();
@@ -589,13 +600,11 @@ void PreferencesDialog::setupUI()
       mPlatformWidthSpin = new QDoubleSpinBox();
       mPlatformWidthSpin->setMinimum(0.0);
       mPlatformWidthSpin->setMaximum(1000.0);
-      mPlatformWidthSpin->setValue(mPrefs.platformWidth);
       mPlatformWidthSpin->setToolTip("The width of your build platform.");
 
       mPlatformHeightSpin = new QDoubleSpinBox();
       mPlatformHeightSpin->setMinimum(0.0);
       mPlatformHeightSpin->setMaximum(1000.0);
-      mPlatformHeightSpin->setValue(mPrefs.platformHeight);
       mPlatformHeightSpin->setToolTip("The height of your build platform.");
 
       platformLayout->addWidget(platformWidthLabel);
@@ -609,6 +618,57 @@ void PreferencesDialog::setupUI()
    mTabWidget->addTab(advancedTab, "Advanced");
    {
       mTabWidget->setTabToolTip(3, "Advanced preferences.");
+      QGridLayout* advancedLayout = new QGridLayout();
+      advancedTab->setLayout(advancedLayout);
+
+      // Export group.
+      QGroupBox* exportGroup = new QGroupBox("Export");
+      advancedLayout->addWidget(exportGroup, 0, 0, 1, 1);
+
+      QHBoxLayout* exportLayout = new QHBoxLayout();
+      exportGroup->setLayout(exportLayout);
+
+      mExportAbsoluteModeCheckbox = new QCheckBox("Export Absolute Axes");
+      mExportAbsoluteModeCheckbox->setToolTip("If enabled, this will export all extruder movement axes in absolute\ncoordinates. If disabled, coordinates will be relative.");
+      exportLayout->addWidget(mExportAbsoluteModeCheckbox);
+
+      mExportAbsoluteEModeCheckbox = new QCheckBox("Export Absolute E Axis");
+      mExportAbsoluteEModeCheckbox->setToolTip("If enabled, this will export all extrusions in absolute coordinates.\nIf disabled, coordinates will be relative.");
+      exportLayout->addWidget(mExportAbsoluteEModeCheckbox);
+
+      // Import group.
+      QGroupBox* importGroup = new QGroupBox("Import");
+      advancedLayout->addWidget(importGroup, 1, 0, 1, 1);
+
+      QGridLayout* importLayout = new QGridLayout();
+      importGroup->setLayout(importLayout);
+
+      QLabel* retractionLabel = new QLabel("Retraction: ");
+      retractionLabel->setAlignment(Qt::AlignRight);
+      importLayout->addWidget(retractionLabel, 0, 0, 1, 1);
+
+      QLabel* primerLabel = new QLabel("Primer: ");
+      primerLabel->setAlignment(Qt::AlignRight);
+      importLayout->addWidget(primerLabel, 1, 0, 1, 1);
+
+      mImportRetractionSpin = new QDoubleSpinBox();
+      mImportRetractionSpin->setToolTip("When importing objects, this defines the amount of retraction to expect in that file (use -1 to auto calculate).");
+      mImportRetractionSpin->setMinimum(-1.0);
+      mImportRetractionSpin->setMaximum(1000.0);
+      importLayout->addWidget(mImportRetractionSpin, 0, 1, 1, 1);
+
+      mImportPrimerSpin = new QDoubleSpinBox();
+      mImportPrimerSpin->setToolTip("When importing objects, this defines the amount of retraction priming to expect in that file (use -1 to use the same value as retraction).\nYou really only need to change this if you use a different prime length than retraction.");
+      mImportPrimerSpin->setMinimum(-1.0);
+      mImportPrimerSpin->setMaximum(1000.0);
+      importLayout->addWidget(mImportPrimerSpin, 1, 1, 1, 1);
+
+      importLayout->setColumnStretch(0, 1);
+      importLayout->setColumnStretch(1, 2);
+
+      advancedLayout->setRowStretch(0, 0);
+      advancedLayout->setRowStretch(1, 0);
+      advancedLayout->setRowStretch(2, 1);
    }
 
    //// Dialog buttons.
@@ -628,47 +688,105 @@ void PreferencesDialog::setupUI()
    buttonLayout->addWidget(mDefaultButton);
 
    setLayout(mainLayout);
+
+   updateUI();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::setupConnections()
 {
    //// Editor Tab.
-   connect(mSaveConfigurationButton,   SIGNAL(pressed()),                  this, SLOT(onSaveConfigPressed()));
-   connect(mLoadConfigurationButton,   SIGNAL(pressed()),                  this, SLOT(onLoadConfigPressed()));
-   connect(mUseDisplayListsCheckbox,   SIGNAL(stateChanged(int)),          this, SLOT(onUseDisplayListsChanged(int)));
-   connect(mDrawQualityCombo,          SIGNAL(currentIndexChanged(int)),   this, SLOT(onDrawQualityChanged(int)));
-   connect(mLayerSkipSpin,             SIGNAL(valueChanged(int)),          this, SLOT(onLayerSkipChanged(int)));
-   connect(mBackgroundColorButton,     SIGNAL(pressed()),                  this, SLOT(onBackgroundColorPressed()));
+   connect(mSaveConfigurationButton,         SIGNAL(pressed()),                  this, SLOT(onSaveConfigPressed()));
+   connect(mLoadConfigurationButton,         SIGNAL(pressed()),                  this, SLOT(onLoadConfigPressed()));
+   connect(mUseDisplayListsCheckbox,         SIGNAL(stateChanged(int)),          this, SLOT(onUseDisplayListsChanged(int)));
+   connect(mDrawQualityCombo,                SIGNAL(currentIndexChanged(int)),   this, SLOT(onDrawQualityChanged(int)));
+   connect(mLayerSkipSpin,                   SIGNAL(valueChanged(int)),          this, SLOT(onLayerSkipChanged(int)));
+   connect(mBackgroundColorButton,           SIGNAL(pressed()),                  this, SLOT(onBackgroundColorPressed()));
 
    //// Splicing Tab.
-   connect(mGCodePrefixEdit,           SIGNAL(textChanged()),              this, SLOT(onPrefixChanged()));
-   connect(mExportCommentsCheckbox,    SIGNAL(stateChanged(int)),          this, SLOT(onExportCommentsChanged(int)));
-   connect(mExportAllAxesCheckbox,     SIGNAL(stateChanged(int)),          this, SLOT(onExportAllAxesChanged(int)));
-   connect(mPrintSkirtCheckbox,        SIGNAL(stateChanged(int)),          this, SLOT(onPrintSkirtChanged(int)));
-   connect(mSkirtDistanceSpin,         SIGNAL(valueChanged(double)),       this, SLOT(onSkirtDistanceChanged(double)));
+   connect(mGCodePrefixEdit,                 SIGNAL(textChanged()),              this, SLOT(onPrefixChanged()));
+   connect(mExportImportedStartCodeCheckbox, SIGNAL(stateChanged(int)),          this, SLOT(onExportImportedStartCodeChanged(int)));
+   connect(mExportCommentsCheckbox,          SIGNAL(stateChanged(int)),          this, SLOT(onExportCommentsChanged(int)));
+   connect(mExportAllAxesCheckbox,           SIGNAL(stateChanged(int)),          this, SLOT(onExportAllAxesChanged(int)));
+   connect(mPrintSkirtCheckbox,              SIGNAL(stateChanged(int)),          this, SLOT(onPrintSkirtChanged(int)));
+   connect(mSkirtDistanceSpin,               SIGNAL(valueChanged(double)),       this, SLOT(onSkirtDistanceChanged(double)));
 
    //// Printer Tab.
-   connect(mExtruderList,              SIGNAL(currentRowChanged(int)),     this, SLOT(onExtruderSelected(int)));
-   connect(mAddExtruderButton,         SIGNAL(pressed()),                  this, SLOT(onExtruderAddPressed()));
-   connect(mRemoveExtruderButton,      SIGNAL(pressed()),                  this, SLOT(onExtruderRemovePressed()));
-   connect(mExtruderOffsetXSpin,       SIGNAL(valueChanged(double)),       this, SLOT(onExtruderOffsetXChanged(double)));
-   connect(mExtruderOffsetYSpin,       SIGNAL(valueChanged(double)),       this, SLOT(onExtruderOffsetYChanged(double)));
-   connect(mExtruderOffsetZSpin,       SIGNAL(valueChanged(double)),       this, SLOT(onExtruderOffsetZChanged(double)));
-   connect(mExtruderFlowSpin,          SIGNAL(valueChanged(double)),       this, SLOT(onExtruderFlowChanged(double)));
-   connect(mExtruderIdleTempSpin,      SIGNAL(valueChanged(double)),       this, SLOT(onExtruderIdleTempChanged(double)));
-   connect(mExtruderPrintTempSpin,     SIGNAL(valueChanged(double)),       this, SLOT(onExtruderPrintTempChanged(double)));
-   connect(mExtruderColorButton,       SIGNAL(pressed()),                  this, SLOT(onExtruderColorPressed()));
+   connect(mExtruderList,                    SIGNAL(currentRowChanged(int)),     this, SLOT(onExtruderSelected(int)));
+   connect(mAddExtruderButton,               SIGNAL(pressed()),                  this, SLOT(onExtruderAddPressed()));
+   connect(mRemoveExtruderButton,            SIGNAL(pressed()),                  this, SLOT(onExtruderRemovePressed()));
+   connect(mExtruderOffsetXSpin,             SIGNAL(valueChanged(double)),       this, SLOT(onExtruderOffsetXChanged(double)));
+   connect(mExtruderOffsetYSpin,             SIGNAL(valueChanged(double)),       this, SLOT(onExtruderOffsetYChanged(double)));
+   connect(mExtruderOffsetZSpin,             SIGNAL(valueChanged(double)),       this, SLOT(onExtruderOffsetZChanged(double)));
+   connect(mExtruderFlowSpin,                SIGNAL(valueChanged(double)),       this, SLOT(onExtruderFlowChanged(double)));
+   connect(mExtruderIdleTempSpin,            SIGNAL(valueChanged(double)),       this, SLOT(onExtruderIdleTempChanged(double)));
+   connect(mExtruderPrintTempSpin,           SIGNAL(valueChanged(double)),       this, SLOT(onExtruderPrintTempChanged(double)));
+   connect(mExtruderColorButton,             SIGNAL(pressed()),                  this, SLOT(onExtruderColorPressed()));
    
-   connect(mPlatformWidthSpin,         SIGNAL(valueChanged(double)),       this, SLOT(onPlatformWidthChanged(double)));
-   connect(mPlatformHeightSpin,        SIGNAL(valueChanged(double)),       this, SLOT(onPlatformHeightChanged(double)));
+   connect(mPlatformWidthSpin,               SIGNAL(valueChanged(double)),       this, SLOT(onPlatformWidthChanged(double)));
+   connect(mPlatformHeightSpin,              SIGNAL(valueChanged(double)),       this, SLOT(onPlatformHeightChanged(double)));
 
    //// Advanced Tab.
+   connect(mExportAbsoluteModeCheckbox,      SIGNAL(stateChanged(int)),          this, SLOT(onExportAbsoluteModeChanged(int)));
+   connect(mExportAbsoluteEModeCheckbox,     SIGNAL(stateChanged(int)),          this, SLOT(onExportAbsoluteEModeChanged(int)));
+   connect(mImportRetractionSpin,            SIGNAL(valueChanged(double)),       this, SLOT(onImportRetractionChanged(double)));
+   connect(mImportPrimerSpin,                SIGNAL(valueChanged(double)),       this, SLOT(onImportPrimerChanged(double)));
 
    //// Dialog Buttons.
-   connect(mOkButton,                  SIGNAL(pressed()),                  this, SLOT(accept()));
-   connect(mCancelButton,              SIGNAL(pressed()),                  this, SLOT(close()));
-   connect(mDefaultButton,             SIGNAL(pressed()),                  this, SLOT(onDefaultPressed()));
+   connect(mOkButton,                        SIGNAL(pressed()),                  this, SLOT(accept()));
+   connect(mCancelButton,                    SIGNAL(pressed()),                  this, SLOT(close()));
+   connect(mDefaultButton,                   SIGNAL(pressed()),                  this, SLOT(onDefaultPressed()));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::updateUI()
+{
+   // Editor Tab.
+   mUseDisplayListsCheckbox->setChecked(mPrefs.useDisplayLists);
+   mDrawQualityCombo->setCurrentIndex((int)mPrefs.drawQuality);
+   mLayerSkipSpin->setValue(mPrefs.layerSkipSize);
+   setBackgroundColor(mPrefs.backgroundColor);
+
+   // Splicing Tab.
+   mGCodePrefixEdit->setText(mPrefs.customPrefixCode);
+   mExportImportedStartCodeCheckbox->setChecked(mPrefs.exportImportedStartCode);
+   mExportCommentsCheckbox->setChecked(mPrefs.exportComments);
+   mExportAllAxesCheckbox->setChecked(mPrefs.exportAllAxes);
+   mPrintSkirtCheckbox->setChecked(mPrefs.printSkirt);
+   mSkirtDistanceSpin->setValue(mPrefs.skirtDistance);
+
+   // Printer Tab.
+   mExtruderList->clear();
+   int extruderCount = (int)mPrefs.extruderList.size();
+   for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+   {
+      mExtruderList->addItem("Extruder: " + QString::number(extruderIndex + 1));
+   }
+   mExtruderOffsetXSpin->setEnabled(false);
+   mExtruderOffsetYSpin->setEnabled(false);
+   mExtruderOffsetZSpin->setEnabled(false);
+   mExtruderFlowSpin->setEnabled(false);
+   mExtruderIdleTempSpin->setEnabled(false);
+   mExtruderPrintTempSpin->setEnabled(false);
+   mExtruderColorButton->setEnabled(false);
+   mExtruderOffsetXSpin->setValue(0.0);
+   mExtruderOffsetYSpin->setValue(0.0);
+   mExtruderOffsetZSpin->setValue(0.0);
+   mExtruderFlowSpin->setValue(1.0);
+   mExtruderIdleTempSpin->setValue(0.0);
+   mExtruderPrintTempSpin->setValue(0.0);
+   QPixmap pix = QPixmap(QSize(16, 16));
+   pix.fill(Qt::darkGray);
+   mExtruderColorButton->setIcon(QIcon(pix));
+   mPlatformWidthSpin->setValue(mPrefs.platformWidth);
+   mPlatformHeightSpin->setValue(mPrefs.platformHeight);
+   mCurrentExtruder = -1;
+
+   // Advanced Tab.
+   mExportAbsoluteModeCheckbox->setChecked(mPrefs.exportAbsoluteMode);
+   mExportAbsoluteEModeCheckbox->setChecked(mPrefs.exportAbsoluteEMode);
+   mImportRetractionSpin->setValue(mPrefs.importRetraction);
+   mImportPrimerSpin->setValue(mPrefs.importPrimer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

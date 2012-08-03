@@ -64,6 +64,7 @@ public slots:
 
    //// Splicing Tab.
    void onPrefixChanged();
+   void onExportImportedStartCodeChanged(int state);
    void onExportCommentsChanged(int state);
    void onExportAllAxesChanged(int state);
    void onPrintSkirtChanged(int state);
@@ -84,6 +85,10 @@ public slots:
    void onPlatformHeightChanged(double value);
 
    //// Advanced Tab.
+   void onExportAbsoluteModeChanged(int state);
+   void onExportAbsoluteEModeChanged(int state);
+   void onImportRetractionChanged(double value);
+   void onImportPrimerChanged(double value);
 
    //// Dialog buttons.
    void onDefaultPressed();
@@ -91,6 +96,8 @@ public slots:
 private:
    void setupUI();
    void setupConnections();
+
+   void updateUI();
 
    void setBackgroundColor(const QColor& color);
    void setExtruderColor(const QColor& color);
@@ -112,6 +119,7 @@ private:
 
    //// Splicing Tab
    QTextEdit*        mGCodePrefixEdit;
+   QCheckBox*        mExportImportedStartCodeCheckbox;
    QCheckBox*        mExportCommentsCheckbox;
    QCheckBox*        mExportAllAxesCheckbox;
    QCheckBox*        mPrintSkirtCheckbox;
@@ -133,6 +141,10 @@ private:
    int               mCurrentExtruder;
 
    //// Advanced Tab.
+   QCheckBox*        mExportAbsoluteModeCheckbox;
+   QCheckBox*        mExportAbsoluteEModeCheckbox;
+   QDoubleSpinBox*   mImportRetractionSpin;
+   QDoubleSpinBox*   mImportPrimerSpin;
 
    //// Dialog Buttons.
    QPushButton*      mOkButton;
