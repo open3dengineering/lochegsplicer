@@ -338,6 +338,13 @@ void PreferencesDialog::onImportPrimerChanged(double value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onOkPressed()
+{
+   storeLastPreferences();
+   accept();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onDefaultPressed()
 {
    mPrefs = PreferenceData();
@@ -523,19 +530,23 @@ void PreferencesDialog::setupUI()
       mExtruderOffsetXSpin = new QDoubleSpinBox();
       mExtruderOffsetXSpin->setMinimum(0.0);
       mExtruderOffsetXSpin->setMaximum(1000.0);
+      mExtruderOffsetXSpin->setDecimals(4);
       mExtruderOffsetXSpin->setToolTip("The X coordinate offset of this extruder relative to the primary.");
       mExtruderOffsetYSpin = new QDoubleSpinBox();
       mExtruderOffsetYSpin->setMinimum(0.0);
       mExtruderOffsetYSpin->setMaximum(1000.0);
+      mExtruderOffsetYSpin->setDecimals(4);
       mExtruderOffsetYSpin->setToolTip("The Y coordinate offset of this extruder relative to the primary.");
       mExtruderOffsetZSpin = new QDoubleSpinBox();
       mExtruderOffsetZSpin->setMinimum(0.0);
       mExtruderOffsetZSpin->setMaximum(1000.0);
+      mExtruderOffsetZSpin->setDecimals(4);
       mExtruderOffsetZSpin->setToolTip("The Z coordinate offset of this extruder relative to the primary.");
       mExtruderFlowSpin = new QDoubleSpinBox();
       mExtruderFlowSpin->setMinimum(0.0);
       mExtruderFlowSpin->setMaximum(100.0);
       mExtruderFlowSpin->setSingleStep(0.1);
+      mExtruderFlowSpin->setDecimals(4);
       mExtruderFlowSpin->setToolTip("A multiplier to apply to the extrusion flow values of the spliced output file.");
       mExtruderIdleTempSpin = new QDoubleSpinBox();
       mExtruderIdleTempSpin->setMinimum(0.0);
@@ -655,12 +666,14 @@ void PreferencesDialog::setupUI()
       mImportRetractionSpin->setToolTip("When importing objects, this defines the amount of retraction to expect in that file (use -1 to auto calculate).");
       mImportRetractionSpin->setMinimum(-1.0);
       mImportRetractionSpin->setMaximum(1000.0);
+      mImportRetractionSpin->setDecimals(4);
       importLayout->addWidget(mImportRetractionSpin, 0, 1, 1, 1);
 
       mImportPrimerSpin = new QDoubleSpinBox();
       mImportPrimerSpin->setToolTip("When importing objects, this defines the amount of retraction priming to expect in that file (use -1 to use the same value as retraction).\nYou really only need to change this if you use a different prime length than retraction.");
       mImportPrimerSpin->setMinimum(-1.0);
       mImportPrimerSpin->setMaximum(1000.0);
+      mImportPrimerSpin->setDecimals(4);
       importLayout->addWidget(mImportPrimerSpin, 1, 1, 1, 1);
 
       importLayout->setColumnStretch(0, 1);
@@ -689,6 +702,7 @@ void PreferencesDialog::setupUI()
 
    setLayout(mainLayout);
 
+   restoreLastPreferences(mPrefs);
    updateUI();
 }
 
@@ -733,7 +747,7 @@ void PreferencesDialog::setupConnections()
    connect(mImportPrimerSpin,                SIGNAL(valueChanged(double)),       this, SLOT(onImportPrimerChanged(double)));
 
    //// Dialog Buttons.
-   connect(mOkButton,                        SIGNAL(pressed()),                  this, SLOT(accept()));
+   connect(mOkButton,                        SIGNAL(pressed()),                  this, SLOT(onOkPressed()));
    connect(mCancelButton,                    SIGNAL(pressed()),                  this, SLOT(close()));
    connect(mDefaultButton,                   SIGNAL(pressed()),                  this, SLOT(onDefaultPressed()));
 }
@@ -823,6 +837,105 @@ void PreferencesDialog::storeWindowState()
    settings.beginGroup("PreferencesDialogState");
    settings.setValue("geometry", saveGeometry());
    settings.endGroup();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::storeLastPreferences()
+{
+   QSettings settings(COMPANY_NAME, APPLICATION_NAME);
+
+   settings.beginGroup("LastPreferences");
+   {
+      // Editor properties.
+      settings.setValue("BackgroundColor", mPrefs.backgroundColor);
+      settings.setValue("UseDisplayLists", mPrefs.useDisplayLists);
+      settings.setValue("DrawQuality", (int)mPrefs.drawQuality);
+      // Splicing properties.
+      settings.setValue("CustomPrefixCode", mPrefs.customPrefixCode);
+      settings.setValue("ExportImportedStartCode", mPrefs.exportImportedStartCode);
+      settings.setValue("ExportComments", mPrefs.exportComments);
+      settings.setValue("ExportAllAxes", mPrefs.exportAllAxes);
+      settings.setValue("PrintSkirt", mPrefs.printSkirt);
+      settings.setValue("SkirtDistance", mPrefs.skirtDistance);
+      // Printer properties.
+      int extruderCount = (int)mPrefs.extruderList.size();
+      settings.beginWriteArray("Extruders", extruderCount);
+      for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+      {
+         const ExtruderData& data = mPrefs.extruderList[extruderIndex];
+         settings.setArrayIndex(extruderIndex);
+         settings.setValue("OffsetX", data.offset[X]);
+         settings.setValue("OffsetY", data.offset[Y]);
+         settings.setValue("OffsetZ", data.offset[Z]);
+         settings.setValue("Flow", data.flow);
+         settings.setValue("IdleTemp", data.idleTemp);
+         settings.setValue("PrintTemp", data.printTemp);
+         settings.setValue("Color", data.color);
+      }
+      settings.endArray();
+      settings.setValue("PlatformWidth", mPrefs.platformWidth);
+      settings.setValue("PlatformHeight", mPrefs.platformHeight);
+      // Advanced properties.
+      settings.setValue("ExportAbsoluteMode", mPrefs.exportAbsoluteMode);
+      settings.setValue("ExportAbsoluteEMode", mPrefs.exportAbsoluteEMode);
+      settings.setValue("ImportRetraction", mPrefs.importRetraction);
+      settings.setValue("ImportPrimer", mPrefs.importPrimer);
+   }
+   settings.endGroup();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool PreferencesDialog::restoreLastPreferences(PreferenceData& prefs)
+{
+   QSettings settings(COMPANY_NAME, APPLICATION_NAME);
+
+   settings.beginGroup("LastPreferences");
+   {
+      if (!settings.contains("BackgroundColor"))
+      {
+         return false;
+      }
+
+      // Editor properties.
+      PreferenceData defaults;
+      prefs.backgroundColor = settings.value("BackgroundColor", defaults.backgroundColor).value<QColor>();
+      prefs.useDisplayLists = settings.value("UseDisplayLists", defaults.useDisplayLists).toBool();
+      prefs.drawQuality = (DrawQuality)settings.value("DrawQuality", (int)defaults.drawQuality).toInt();
+      // Splicing properties.
+      prefs.customPrefixCode = settings.value("CustomPrefixCode", defaults.customPrefixCode).toString();
+      prefs.exportImportedStartCode = settings.value("ExportImportedStartCode", defaults.exportImportedStartCode).toBool();
+      prefs.exportComments = settings.value("ExportComments", defaults.exportComments).toBool();
+      prefs.exportAllAxes = settings.value("ExportAllAxes", defaults.exportAllAxes).toBool();
+      prefs.printSkirt = settings.value("PrintSkirt", defaults.printSkirt).toBool();
+      prefs.skirtDistance = settings.value("SkirtDistance", defaults.skirtDistance).toDouble();
+      // Printer properties.
+      ExtruderData defaultExtruder;
+      int extruderCount = settings.beginReadArray("Extruders");
+      prefs.extruderList.resize(extruderCount);
+      for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+      {
+         ExtruderData& data = prefs.extruderList[extruderIndex];
+         settings.setArrayIndex(extruderIndex);
+         data.offset[X] = settings.value("OffsetX", defaultExtruder.offset[X]).toDouble();
+         data.offset[Y] = settings.value("OffsetY", defaultExtruder.offset[Y]).toDouble();
+         data.offset[Z] = settings.value("OffsetZ", defaultExtruder.offset[Z]).toDouble();
+         data.flow = settings.value("Flow", defaultExtruder.flow).toDouble();
+         data.idleTemp = settings.value("IdleTemp", defaultExtruder.idleTemp).toDouble();
+         data.printTemp = settings.value("PrintTemp", defaultExtruder.printTemp).toDouble();
+         data.color = settings.value("Color", defaultExtruder.color).value<QColor>();
+      }
+      settings.endArray();
+      prefs.platformWidth = settings.value("PlatformWidth", defaults.platformWidth).toDouble();
+      prefs.platformHeight = settings.value("PlatformHeight", defaults.platformHeight).toDouble();
+      // Advanced properties.
+      prefs.exportAbsoluteMode = settings.value("ExportAbsoluteMode", defaults.exportAbsoluteMode).toBool();
+      prefs.exportAbsoluteEMode = settings.value("ExportAbsoluteEMode", defaults.exportAbsoluteEMode).toBool();
+      prefs.importRetraction = settings.value("ImportRetraction", defaults.importRetraction).toDouble();
+      prefs.importPrimer = settings.value("ImportPrimer", defaults.importPrimer).toDouble();
+   }
+   settings.endGroup();
+
+   return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

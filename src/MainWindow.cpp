@@ -78,7 +78,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void MainWindow::onOptionsPressed()
+void MainWindow::onPreferencesPressed()
 {
    PreferencesDialog dlg(mPrefs);
 
@@ -86,35 +86,8 @@ void MainWindow::onOptionsPressed()
 
    if (dlg.exec() == QDialog::Accepted)
    {
-      // Check for draw quality changes
-      bool regenerateGeometry = false;
-      if (mPrefs.useDisplayLists != dlg.getPreferences().useDisplayLists ||
-          mPrefs.drawQuality != dlg.getPreferences().drawQuality ||
-          mPrefs.layerSkipSize != dlg.getPreferences().layerSkipSize)
-      {
-         regenerateGeometry = true;
-      }
-
-      // Finalize the properties.
-      mPrefs = dlg.getPreferences();
-
-      int extruderCount = (int)mPrefs.extruderList.size() - 1;
-      int count = mObjectListWidget->rowCount();
-      for (int index = 0; index < count; ++index)
-      {
-         QSpinBox* extruderSpin = (QSpinBox*)mObjectListWidget->cellWidget(index, 1);
-         extruderSpin->setMaximum(extruderCount);
-      }
-
-      if (regenerateGeometry)
-      {
-         //mVisualizerView->setShaderEnabled(mPrefs.drawQuality == DRAW_QUALITY_HIGH);
-
-         if (!mVisualizerView->regenerateGeometry())
-         {
-            QMessageBox::critical(this, "Failure!", mVisualizerView->getError(), QMessageBox::Ok);
-         }
-      }
+      PreferenceData newPrefs = dlg.getPreferences();
+      applyPreferences(newPrefs);
    }
    else
    {
@@ -578,6 +551,8 @@ void MainWindow::setupUI()
    mPlaterYPosSpin->setMaximum(mPrefs.platformHeight + 50.0);
    mPlaterXPosSpin->setSingleStep(0.5);
    mPlaterYPosSpin->setSingleStep(0.5);
+   mPlaterXPosSpin->setDecimals(4);
+   mPlaterYPosSpin->setDecimals(4);
    mPlaterXPosSpin->setToolTip("X Coordinate to center the object.");
    mPlaterYPosSpin->setToolTip("Y Coordinate to center the object.");
    platerLayout->addWidget(platerXLabel, 0, 0, 1, 1);
@@ -615,12 +590,18 @@ void MainWindow::setupUI()
    sizes.push_back(width() / 3);
    mMainSplitter->setSizes(sizes);
    setLayout(mainLayout);
+
+   PreferenceData prefs;
+   if (PreferencesDialog::restoreLastPreferences(prefs))
+   {
+      applyPreferences(prefs);
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void MainWindow::setupConnections()
 {
-   connect(mPreferencesButton,          SIGNAL(pressed()),               this, SLOT(onOptionsPressed()));
+   connect(mPreferencesButton,      SIGNAL(pressed()),               this, SLOT(onPreferencesPressed()));
    connect(mHelpButton,             SIGNAL(pressed()),               this, SLOT(onHelpPressed()));
    connect(mLayerSlider,            SIGNAL(valueChanged(int)),       this, SLOT(onLayerSliderChanged(int)));
    connect(mObjectListWidget,       SIGNAL(itemSelectionChanged()),  this, SLOT(onObjectSelectionChanged()));
@@ -632,6 +613,40 @@ void MainWindow::setupConnections()
 #ifdef BUILD_DEBUG_CONTROLS
    connect(mDebugExportLayerButton, SIGNAL(pressed()),               this, SLOT(onDebugExportLayerDataPressed()));
 #endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MainWindow::applyPreferences(const PreferenceData& newPrefs)
+{
+   // Check for draw quality changes
+   bool regenerateGeometry = false;
+   if (mPrefs.useDisplayLists != newPrefs.useDisplayLists ||
+      mPrefs.drawQuality != newPrefs.drawQuality ||
+      mPrefs.layerSkipSize != newPrefs.layerSkipSize)
+   {
+      regenerateGeometry = true;
+   }
+
+   // Finalize the properties.
+   mPrefs = newPrefs;
+
+   int extruderCount = (int)mPrefs.extruderList.size() - 1;
+   int count = mObjectListWidget->rowCount();
+   for (int index = 0; index < count; ++index)
+   {
+      QSpinBox* extruderSpin = (QSpinBox*)mObjectListWidget->cellWidget(index, 1);
+      extruderSpin->setMaximum(extruderCount);
+   }
+
+   if (regenerateGeometry)
+   {
+      //mVisualizerView->setShaderEnabled(mPrefs.drawQuality == DRAW_QUALITY_HIGH);
+
+      if (!mVisualizerView->regenerateGeometry())
+      {
+         QMessageBox::critical(this, "Failure!", mVisualizerView->getError(), QMessageBox::Ok);
+      }
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

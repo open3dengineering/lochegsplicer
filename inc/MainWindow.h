@@ -51,7 +51,7 @@ protected:
    void closeEvent(QCloseEvent* event);
 
 public slots:
-   void onOptionsPressed();
+   void onPreferencesPressed();
    void onHelpPressed();
    void onLayerSliderChanged(int value);
    void onObjectSelectionChanged();
@@ -74,6 +74,8 @@ private:
 
    void setupUI();
    void setupConnections();
+
+   void applyPreferences(const PreferenceData& newPrefs);
 
    void storeWindowState();
    void restoreWindowState();

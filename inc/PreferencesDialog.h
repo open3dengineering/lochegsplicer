@@ -91,6 +91,7 @@ public slots:
    void onImportPrimerChanged(double value);
 
    //// Dialog buttons.
+   void onOkPressed();
    void onDefaultPressed();
 
 private:
@@ -102,6 +103,11 @@ private:
    void setBackgroundColor(const QColor& color);
    void setExtruderColor(const QColor& color);
 
+   void storeLastPreferences();
+public:
+   static bool restoreLastPreferences(PreferenceData& prefs);
+
+private:
    void storeWindowState();
    void restoreWindowState();
 

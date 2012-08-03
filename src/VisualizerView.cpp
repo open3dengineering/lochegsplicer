@@ -58,8 +58,8 @@ VisualizerView::VisualizerView(const PreferenceData& prefs)
       mCameraTransTarget[axis] = 0.0;
    }
 
-   mCameraZoom = -50.0;
-   mCameraZoomTarget = -50.0;
+   mCameraZoom = -300.0;
+   mCameraZoomTarget = -300.0;
 
    mCameraTrans[X] = mPrefs.platformWidth / 2.0;
    mCameraTrans[Y] = mPrefs.platformHeight / 2.0;
