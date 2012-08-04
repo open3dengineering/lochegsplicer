@@ -552,12 +552,12 @@ bool GCodeObject::getLayerAtHeight(std::vector<GCodeCommand>& outLayer, double h
    for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
    {
       const LayerData& data = mData[layerIndex];
-      if (fabs(data.height - height) < 0.001)
+      if (fabs(data.height + mOffsetPos[Z] - height) < 0.001)
       {
          outLayer.insert(outLayer.end(), data.codes.begin(), data.codes.end());
          return true;
       }
-      else if (data.height > height)
+      else if (data.height + mOffsetPos[Z] > height)
       {
          return false;
       }
@@ -573,7 +573,7 @@ bool GCodeObject::getLayerAboveHeight(const LayerData*& outLayer, double height)
    for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
    {
       const LayerData& data = mData[layerIndex];
-      if (data.height > height)
+      if (data.height + mOffsetPos[Z] > height)
       {
          outLayer = &data;
          return true;
@@ -660,18 +660,21 @@ void GCodeObject::addLayer(std::vector<GCodeCommand>& layer)
 ////////////////////////////////////////////////////////////////////////////////
 bool GCodeObject::healLayerRetraction()
 {
+   double extrusionValue = 0.0;
+   double previousPrimer = 0.0;
+
    bool findPrimer = false;
    int layerCount = (int)mData.size();
-   for (int layerIndex = 0; layerIndex < layerCount; ++layerIndex)
+   for (int layerIndex = 1; layerIndex < layerCount; ++layerIndex)
    {
       LayerData& layer = mData[layerIndex];
-      double extrusionValue = 0.0;
 
       // If a previous layer is missing its primer, attempt
       // to find it.
       if (findPrimer)
       {
          findPrimer = false;
+         previousPrimer = 0.0;
 
          int codeCount = (int)layer.codes.size();
          for (int codeIndex = 0; codeIndex < codeCount; ++codeIndex)
@@ -692,25 +695,31 @@ bool GCodeObject::healLayerRetraction()
                   mError = "A retraction was found that was not followed properly by a primer.";
                   return false;
                }
+               else if (code.axisValue[E] > 0.0)
+               {
+                  double retractionAmount = mPrefs.importRetraction;
+                  if (mPrefs.importRetraction < 0.0)
+                  {
+                     retractionAmount = code.axisValue[E];
+                  }
+                  double primeAmount = mPrefs.importPrimer;
+                  if (mPrefs.importPrimer < 0.0)
+                  {
+                     primeAmount = code.axisValue[E];
+                  }
 
-               double retractionAmount = mPrefs.importRetraction;
-               if (mPrefs.importRetraction < 0.0)
-               {
-                  retractionAmount = -code.axisValue[E];
-               }
-               double primeAmount = mPrefs.importPrimer;
-               if (mPrefs.importPrimer < 0.0)
-               {
-                  primeAmount = -code.axisValue[E];
-               }
+                  // This extrusion should match the primer, if it doesn't
+                  // then either our expected primer is wrong or the
+                  // primer is broken up between multiple movements.
+                  if (extrusionValue + previousPrimer >= primeAmount - retractionAmount)
+                  {
+                     code.axisValue[E] = 0.0;
+                     break;
+                  }
 
-               // Determine if we have found our primer, and then
-               // erase it because we have already removed the
-               // retraction.
-               if (extrusionValue >= primeAmount - retractionAmount)
-               {
-                  layer.codes.erase(layer.codes.begin() + codeIndex);
-                  break;
+                  // If we get here, it's because we have not yet found
+                  // our entire primer, so we'll need to continue seeking.
+                  previousPrimer += code.axisValue[E];
                }
             }
          }
@@ -751,10 +760,9 @@ bool GCodeObject::healLayerRetraction()
                // then we need to remove this retraction
                // from the layer and then search the next
                // layer for the primer that matches this.
-               extrusionValue += primeAmount;
                if (extrusionValue < primeAmount - retractionAmount)
                {
-                  layer.codes.erase(layer.codes.begin() + codeIndex);
+                  code.axisValue[E] = 0.0;
                   findPrimer = true;
                }
                break;
