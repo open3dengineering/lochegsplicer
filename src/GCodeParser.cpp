@@ -71,6 +71,12 @@ bool GCodeParser::isOpen() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void GCodeParser::setCommentMarkers(const QByteArray& markers)
+{
+   mCommentMarkers = markers;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool GCodeParser::parseNext()
 {
    if (!mFile.isOpen())
@@ -115,16 +121,19 @@ bool GCodeParser::parseNext()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool GCodeParser::codeSeen(char code)
+bool GCodeParser::codeSeen(QString code)
 {
    if (!mFile.isOpen())
    {
       return false;
    }
 
-   mCodePos = mToken.indexOf(QString(code), 0);
+   code = code.toUpper();
+
+   mCodePos = mToken.indexOf(code, 0);
    if (mCodePos > -1)
    {
+      mCodePos += code.length() - 1;
       return true;
    }
 
@@ -132,16 +141,16 @@ bool GCodeParser::codeSeen(char code)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-double GCodeParser::codeValue()
+QString GCodeParser::codeValue()
 {
    if (!mFile.isOpen())
    {
-      return 0.0;
+      return "";
    }
 
    if (mCodePos == -1)
    {
-      return 0.0;
+      return "";
    }
 
    bool skipSpaces = true;
@@ -150,8 +159,8 @@ double GCodeParser::codeValue()
    {
       char c = mToken.at(mCodePos + 1 + i);
 
-      // All number values and decimal point are taken as the value.
-      if ((c >= '0' && c <= '9') || c == '.' || c == '-')
+      // All number values are taken as the value.
+      if (c != ' ' && c != '\t')
       {
          value[i] = c;
          skipSpaces = false;
@@ -169,7 +178,48 @@ double GCodeParser::codeValue()
       }
    }
 
-   return QString(value).toDouble();
+   return QString(value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int GCodeParser::codeValueInt()
+{
+   if (!mFile.isOpen())
+   {
+      return 0.0;
+   }
+
+   if (mCodePos == -1)
+   {
+      return 0.0;
+   }
+
+   bool skipSpaces = true;
+   char value[80] = {0,};
+   for (int i = 0; i < mToken.length() - mCodePos - 1; ++i)
+   {
+      char c = mToken.at(mCodePos + 1 + i);
+
+      // All number values are taken as the value.
+      if (c >= '0' && c <= '9' || c == '-')
+      {
+         value[i] = c;
+         skipSpaces = false;
+      }
+      // Leading spaces between the code and value are skipped
+      else if (skipSpaces && c == ' ')
+      {
+         mCodePos++;
+         i--;
+         continue;
+      }
+      else
+      {
+         break;
+      }
+   }
+
+   return QString(value).toInt();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -213,6 +263,46 @@ long GCodeParser::codeValueLong()
    return QString(value).toLong();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+double GCodeParser::codeValueDouble()
+{
+   if (!mFile.isOpen())
+   {
+      return 0.0;
+   }
+
+   if (mCodePos == -1)
+   {
+      return 0.0;
+   }
+
+   bool skipSpaces = true;
+   char value[80] = {0,};
+   for (int i = 0; i < mToken.length() - mCodePos - 1; ++i)
+   {
+      char c = mToken.at(mCodePos + 1 + i);
+
+      // All number values and decimal point are taken as the value.
+      if ((c >= '0' && c <= '9') || c == '.' || c == '-')
+      {
+         value[i] = c;
+         skipSpaces = false;
+      }
+      // Leading spaces between the code and value are skipped
+      else if (skipSpaces && c == ' ')
+      {
+         mCodePos++;
+         i--;
+         continue;
+      }
+      else
+      {
+         break;
+      }
+   }
+
+   return QString(value).toDouble();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 QString GCodeParser::getLine()

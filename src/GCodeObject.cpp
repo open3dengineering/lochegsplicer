@@ -103,7 +103,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
 
       bool changeLayers = false;
 
-      if (parser.codeSeen('G'))
+      if (parser.codeSeen("G"))
       {
          lValue = 1000 + parser.codeValueLong();
 
@@ -117,15 +117,15 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
 
             for (int axis = 0; axis < AXIS_NUM; ++axis)
             {
-               if (parser.codeSeen(AXIS_NAME[axis]))
+               if (parser.codeSeen(QString(AXIS_NAME[axis])))
                {
                   if (axis == E? absoluteEMode: absoluteMode)
                   {
-                     currentPos[axis] = (parser.codeValue() * coordConversion) + offsetPos[axis];
+                     currentPos[axis] = (parser.codeValueDouble() * coordConversion) + offsetPos[axis];
                   }
                   else
                   {
-                     currentPos[axis] += (parser.codeValue() * coordConversion);
+                     currentPos[axis] += (parser.codeValueDouble() * coordConversion);
                   }
                }
                code.axisValue[axis] = currentPos[axis];
@@ -133,9 +133,9 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
             code.axisValue[E] = code.axisValue[E] - lastE;
             lastE = currentPos[E];
 
-            if (parser.codeSeen('F'))
+            if (parser.codeSeen("F"))
             {
-               code.f = parser.codeValue();
+               code.f = parser.codeValueDouble();
                code.hasF = true;
             }
 
@@ -220,14 +220,14 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
          // 4: Dwell
          if (lValue == GCODE_DWELL)
          {
-            if (parser.codeSeen('S'))
+            if (parser.codeSeen("S"))
             {
-               code.s = parser.codeValue();
+               code.s = parser.codeValueDouble();
                code.hasS = true;
             }
-            if (parser.codeSeen('P'))
+            if (parser.codeSeen("P"))
             {
-               code.p = parser.codeValue();
+               code.p = parser.codeValueDouble();
                code.hasP = true;
             }
          }
@@ -243,7 +243,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
             bool foundAny = false;
             for (int axis = 0; axis < AXIS_NUM_NO_E; ++axis)
             {
-               if (parser.codeSeen(AXIS_NAME[axis]))
+               if (parser.codeSeen(QString(AXIS_NAME[axis])))
                {
                   foundAny = true;
 
@@ -253,7 +253,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
                   // Not sure if this is correct, as it is contrary to Marlin's
                   // documentation, but according to the source code, this is what
                   // happens when a value is specified along with the axis to home.
-                  dValue = parser.codeValue();
+                  dValue = parser.codeValueDouble();
                   if (dValue != 0.0)
                   {
                      offsetPos[axis] = dValue + homeOffset[axis];
@@ -305,7 +305,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
             {
                offsetPos[axis] = 0.0;
 
-               if (parser.codeSeen(AXIS_NAME[axis]))
+               if (parser.codeSeen(QString(AXIS_NAME[axis])))
                {
                   // The offset is always the difference between our actual
                   // current position and the position our gcode is
@@ -314,7 +314,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
                   // care about our current actual position in a global
                   // sense.  Our offset is used to convert any subsequent
                   // position given to an actual global position.
-                  offsetPos[axis] = currentPos[axis] - (parser.codeValue() * coordConversion);
+                  offsetPos[axis] = currentPos[axis] - (parser.codeValueDouble() * coordConversion);
                }
             }
 
@@ -343,7 +343,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
             continue;
          }
       }
-      else if (parser.codeSeen('M'))
+      else if (parser.codeSeen("M"))
       {
          lValue = 2000 + parser.codeValueLong();
 
@@ -378,9 +378,9 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
          {
             for (int axis = 0; axis < AXIS_NUM_NO_E; ++axis)
             {
-               if (parser.codeSeen(AXIS_NAME[axis]))
+               if (parser.codeSeen(QString(AXIS_NAME[axis])))
                {
-                  homeOffset[axis] = parser.codeValue();
+                  homeOffset[axis] = parser.codeValueDouble();
                }
             }
          }
@@ -388,7 +388,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
          // 221: Set extruder speed factor.
          if (lValue == MCODE_SET_EXTRUDE_FACTOR)
          {
-            if (parser.codeSeen('S'))
+            if (parser.codeSeen("S"))
             {
                // factor in percentage.
                // It's possible that I may have to account for this
@@ -406,7 +406,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
             continue;
          }
       }
-      else if (parser.codeSeen('T'))
+      else if (parser.codeSeen("T"))
       {
          // A T0 code is valid as it does not change extruders...
          if (parser.codeValueLong() != 0)

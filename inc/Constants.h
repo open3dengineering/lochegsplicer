@@ -38,6 +38,8 @@ const static QString APPLICATION_NAME = "LocheGSplicer";
 const static QString LAST_IMPORT_FOLDER = "LastImportFolder";
 const static QString LAST_EXPORT_FOLDER = "LastExportFolder";
 
+const static QString LAST_CONFIG_FOLDER = "LastConfigFolder";
+
 /**
  * Some commonly used indexed type definitions.
  */
@@ -324,7 +326,7 @@ struct PreferenceData
       exportComments = true;
       exportAllAxes = false;
       printSkirt = true;
-      skirtDistance = 2;
+      skirtDistance = 2.0;
 
       // Printer properties.
       extruderList.push_back(ExtruderData(Qt::green));
@@ -352,7 +354,7 @@ struct PreferenceData
    bool exportComments;
    bool exportAllAxes;
    bool printSkirt;
-   int skirtDistance;
+   double skirtDistance;
 
    // Printer properties.
    std::vector<ExtruderData> extruderList;
