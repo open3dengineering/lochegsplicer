@@ -765,10 +765,10 @@ void VisualizerView::callObject(const VisualizerObjectData& object)
          {
             const VisualizerBufferData& buffer = object.layers[layerIndex];
 
-            if (buffer.height <= mLayerDrawHeight)
+            if (buffer.height + object.object->getOffsetPos()[Z] <= mLayerDrawHeight)
             {
                // If this layer is at the top, render it with a slightly darker color.
-               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               if (layerIndex < layerCount - 1 && buffer.height + object.object->getOffsetPos()[Z] > mLayerDrawHeight - object.object->getAverageLayerHeight())
                {
                   QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
                   glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
@@ -800,10 +800,10 @@ void VisualizerView::callObject(const VisualizerObjectData& object)
          {
             const VisualizerBufferData& buffer = object.layers[layerIndex];
 
-            if (buffer.height <= mLayerDrawHeight)
+            if (buffer.height + object.object->getOffsetPos()[Z] <= mLayerDrawHeight)
             {
                // If this layer is at the top, render it with a slightly darker color.
-               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               if (layerIndex < layerCount - 1 && buffer.height + object.object->getOffsetPos()[Z] > mLayerDrawHeight - object.object->getAverageLayerHeight())
                {
                   QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
                   glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
@@ -835,10 +835,10 @@ void VisualizerView::callObject(const VisualizerObjectData& object)
          {
             const VisualizerBufferData& buffer = object.layers[layerIndex];
 
-            if (buffer.height <= mLayerDrawHeight)
+            if (buffer.height + object.object->getOffsetPos()[Z] <= mLayerDrawHeight)
             {
                // If this layer is at the top, render it with a slightly darker color.
-               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               if (layerIndex < layerCount - 1 && buffer.height + object.object->getOffsetPos()[Z] > mLayerDrawHeight - object.object->getAverageLayerHeight())
                {
                   QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
                   glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
@@ -895,10 +895,10 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
          {
             const VisualizerBufferData& buffer = object.layers[layerIndex];
 
-            if (buffer.height <= mLayerDrawHeight)
+            if (buffer.height + object.object->getOffsetPos()[Z] <= mLayerDrawHeight)
             {
                // If this layer is at the top, render it with a slightly darker color.
-               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               if (layerIndex < layerCount - 1 && buffer.height + object.object->getOffsetPos()[Z] > mLayerDrawHeight - object.object->getAverageLayerHeight())
                {
                   QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
                   glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
@@ -930,10 +930,10 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
          {
             const VisualizerBufferData& buffer = object.layers[layerIndex];
 
-            if (buffer.height <= mLayerDrawHeight)
+            if (buffer.height + object.object->getOffsetPos()[Z] <= mLayerDrawHeight)
             {
                // If this layer is at the top, render it with a slightly darker color.
-               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               if (layerIndex < layerCount - 1 && buffer.height + object.object->getOffsetPos()[Z] > mLayerDrawHeight - object.object->getAverageLayerHeight())
                {
                   QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
                   glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);
@@ -966,10 +966,10 @@ void VisualizerView::drawObject(const VisualizerObjectData& object)
          {
             const VisualizerBufferData& buffer = object.layers[layerIndex];
 
-            if (buffer.height <= mLayerDrawHeight)
+            if (buffer.height + object.object->getOffsetPos()[Z] <= mLayerDrawHeight)
             {
                // If this layer is at the top, render it with a slightly darker color.
-               if (layerIndex < layerCount - 1 && buffer.height > mLayerDrawHeight - object.object->getAverageLayerHeight())
+               if (layerIndex < layerCount - 1 && buffer.height + object.object->getOffsetPos()[Z] > mLayerDrawHeight - object.object->getAverageLayerHeight())
                {
                   QColor darker = mPrefs.extruderList[extruderIndex].color.dark();
                   glColor4d(darker.redF(), darker.greenF(), darker.blueF(), 1.0);

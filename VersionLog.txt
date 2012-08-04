@@ -3,6 +3,7 @@ Here is a list of all major changes that went into each release version.
 Current Updates:
 - Preferences are now stored and restored on initialization.
 - Preference configurations can be saved and loaded from file.
+- Plater now allows you to change the Z position.
 
 Version: Beta 004:
 - Ability to use opengl draw lists to handle rendering.

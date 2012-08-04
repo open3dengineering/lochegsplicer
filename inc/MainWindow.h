@@ -59,6 +59,7 @@ public slots:
    void onRemovePressed();
    void onPlaterXPosChanged(double pos);
    void onPlaterYPosChanged(double pos);
+   void onPlaterZPosChanged(double pos);
    void onSplicePressed();
 #ifdef BUILD_DEBUG_CONTROLS
    void onDebugExportLayerDataPressed();
@@ -93,6 +94,7 @@ private:
    QPushButton*      mRemoveFileButton;
    QDoubleSpinBox*   mPlaterXPosSpin;
    QDoubleSpinBox*   mPlaterYPosSpin;
+   QDoubleSpinBox*   mPlaterZPosSpin;
    QPushButton*      mSpliceButton;
 #ifdef BUILD_DEBUG_CONTROLS
    QPushButton*      mDebugExportLayerButton;

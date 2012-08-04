@@ -40,6 +40,7 @@ MainWindow::MainWindow()
    , mRemoveFileButton(NULL)
    , mPlaterXPosSpin(NULL)
    , mPlaterYPosSpin(NULL)
+   , mPlaterZPosSpin(NULL)
    , mSpliceButton(NULL)
 #ifdef BUILD_DEBUG_CONTROLS
    , mDebugExportLayerButton(NULL)
@@ -133,6 +134,7 @@ void MainWindow::onObjectSelectionChanged()
    // Plater controls can only be edited on a single object.
    mPlaterXPosSpin->setEnabled(singleObject);
    mPlaterYPosSpin->setEnabled(singleObject);
+   mPlaterZPosSpin->setEnabled(singleObject);
    if (singleObject && firstSelectedIndex > -1 && firstSelectedIndex < (int)mObjectList.size())
    {
       // If we are showing our plater controls, update their current values with
@@ -142,6 +144,7 @@ void MainWindow::onObjectSelectionChanged()
       {
          mPlaterXPosSpin->setValue(object->getOffsetPos()[X] + object->getCenter()[X]);
          mPlaterYPosSpin->setValue(object->getOffsetPos()[Y] + object->getCenter()[Y]);
+         mPlaterZPosSpin->setValue(object->getOffsetPos()[Z]);
       }
    }
 
@@ -317,6 +320,32 @@ void MainWindow::onPlaterYPosChanged(double pos)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void MainWindow::onPlaterZPosChanged(double pos)
+{
+   int rowCount = (int)mObjectListWidget->rowCount();
+   for (int rowIndex = 0; rowIndex < rowCount; ++rowIndex)
+   {
+      // Remove all items that are selected.
+      if (mObjectListWidget->isItemSelected(mObjectListWidget->item(rowIndex, 0)))
+      {
+         if (rowIndex >= (int)mObjectList.size())
+         {
+            break;
+         }
+
+         mObjectList[rowIndex]->setOffsetPos(
+            mObjectList[rowIndex]->getOffsetPos()[X],
+            mObjectList[rowIndex]->getOffsetPos()[Y],
+            pos);
+
+         updateLayerSlider();
+
+         mVisualizerView->updateGL();
+      }
+   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void MainWindow::onSplicePressed()
 {
    QMessageBox::information(this, "Splice!", "Not implemented yet.", QMessageBox::Ok);
@@ -437,9 +466,9 @@ void MainWindow::updateLayerSlider()
          if (levelCount > 0)
          {
             const LayerData& layer = object->getLayer(levelCount - 1);
-            if (layer.height > maxHeight)
+            if (layer.height + object->getOffsetPos()[Z] > maxHeight)
             {
-               maxHeight = layer.height;
+               maxHeight = layer.height + object->getOffsetPos()[Z];
             }
          }
       }
@@ -543,28 +572,40 @@ void MainWindow::setupUI()
    // Add plater controls.
    QLabel* platerXLabel = new QLabel("X: ");
    QLabel* platerYLabel = new QLabel("Y: ");
+   QLabel* platerZLabel = new QLabel("Z: ");
    mPlaterXPosSpin = new QDoubleSpinBox();
    mPlaterYPosSpin = new QDoubleSpinBox();
+   mPlaterZPosSpin = new QDoubleSpinBox();
    mPlaterXPosSpin->setMinimum(-50.0);
    mPlaterYPosSpin->setMinimum(-50.0);
+   mPlaterZPosSpin->setMinimum(0.0);
    mPlaterXPosSpin->setMaximum(mPrefs.platformWidth + 50.0);
    mPlaterYPosSpin->setMaximum(mPrefs.platformHeight + 50.0);
+   mPlaterZPosSpin->setMaximum(1000.0);
    mPlaterXPosSpin->setSingleStep(0.5);
    mPlaterYPosSpin->setSingleStep(0.5);
+   mPlaterZPosSpin->setSingleStep(0.5);
    mPlaterXPosSpin->setDecimals(4);
    mPlaterYPosSpin->setDecimals(4);
+   mPlaterZPosSpin->setDecimals(4);
    mPlaterXPosSpin->setToolTip("X Coordinate to center the object.");
    mPlaterYPosSpin->setToolTip("Y Coordinate to center the object.");
+   mPlaterZPosSpin->setToolTip("Z Coordinate to center the object.");
    platerLayout->addWidget(platerXLabel, 0, 0, 1, 1);
    platerLayout->addWidget(mPlaterXPosSpin, 0, 1, 1, 1);
    platerLayout->addWidget(platerYLabel, 0, 2, 1, 1);
    platerLayout->addWidget(mPlaterYPosSpin, 0, 3, 1, 1);
+   platerLayout->addWidget(platerZLabel, 0, 4, 1, 1);
+   platerLayout->addWidget(mPlaterZPosSpin, 0, 5, 1, 1);
    platerLayout->setColumnStretch(0, 0);
    platerLayout->setColumnStretch(1, 1);
    platerLayout->setColumnStretch(2, 0);
    platerLayout->setColumnStretch(3, 1);
+   platerLayout->setColumnStretch(4, 0);
+   platerLayout->setColumnStretch(5, 1);
    mPlaterXPosSpin->setEnabled(false);
    mPlaterYPosSpin->setEnabled(false);
+   mPlaterZPosSpin->setEnabled(false);
 
    // Below the plater controls are the final builder controls.
    QGroupBox* buildGroup = new QGroupBox("Splice");
@@ -609,6 +650,7 @@ void MainWindow::setupConnections()
    connect(mRemoveFileButton,       SIGNAL(pressed()),               this, SLOT(onRemovePressed()));
    connect(mPlaterXPosSpin,         SIGNAL(valueChanged(double)),    this, SLOT(onPlaterXPosChanged(double)));
    connect(mPlaterYPosSpin,         SIGNAL(valueChanged(double)),    this, SLOT(onPlaterYPosChanged(double)));
+   connect(mPlaterZPosSpin,         SIGNAL(valueChanged(double)),    this, SLOT(onPlaterZPosChanged(double)));
    connect(mSpliceButton,           SIGNAL(pressed()),               this, SLOT(onSplicePressed()));
 #ifdef BUILD_DEBUG_CONTROLS
    connect(mDebugExportLayerButton, SIGNAL(pressed()),               this, SLOT(onDebugExportLayerDataPressed()));
