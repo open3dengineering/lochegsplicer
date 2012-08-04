@@ -145,6 +145,7 @@ void MainWindow::onObjectSelectionChanged()
          mPlaterXPosSpin->setValue(object->getOffsetPos()[X] + object->getCenter()[X]);
          mPlaterYPosSpin->setValue(object->getOffsetPos()[Y] + object->getCenter()[Y]);
          mPlaterZPosSpin->setValue(object->getOffsetPos()[Z]);
+         mPlaterZPosSpin->setSingleStep(object->getAverageLayerHeight());
       }
    }
 
