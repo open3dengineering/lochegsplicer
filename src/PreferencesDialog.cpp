@@ -19,6 +19,7 @@
 
 
 #include <PreferencesDialog.h>
+#include <GCodeParser.h>
 
 #include <QtGui>
 #include <QVariant>
@@ -65,13 +66,345 @@ void PreferencesDialog::closeEvent(QCloseEvent* event)
 ////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onSaveConfigPressed()
 {
-   QMessageBox::information(this, "Save!", "Not implemented yet.", QMessageBox::Ok);
+   QSettings settings(COMPANY_NAME, APPLICATION_NAME);
+   QString lastDir = settings.value(LAST_CONFIG_FOLDER, "").toString();
+   lastDir += "\\config";
+
+   QFileDialog dlg;
+   QString fileName = dlg.getSaveFileName(this, "Save Config File", lastDir, "Config (*.ini);; All Files (*.*)");
+   if (!fileName.isEmpty())
+   {
+      QFileInfo fileInfo = fileName;
+
+      // Remember this directory.
+      lastDir = fileInfo.absolutePath();
+      settings.setValue(LAST_CONFIG_FOLDER, lastDir);
+
+      QFile file;
+
+      file.setFileName(fileName);
+      if (!file.open(QIODevice::WriteOnly))
+      {
+         QMessageBox::critical(this, "Failure!", "Failed to save configuration.", QMessageBox::Ok, QMessageBox::NoButton);
+         return;
+      }
+
+      // Editor properties.
+      file.write("BackgroundColor: R");
+      file.write(QString::number(mPrefs.backgroundColor.red()).toAscii());
+      file.write(" G");
+      file.write(QString::number(mPrefs.backgroundColor.green()).toAscii());
+      file.write(" B");
+      file.write(QString::number(mPrefs.backgroundColor.blue()).toAscii());
+      file.write("\n");
+
+      file.write("UseDisplayLists: ");
+      file.write(mPrefs.useDisplayLists? "TRUE": "FALSE");
+      file.write("\n");
+
+      file.write("DrawQuality: ");
+      file.write(QString::number(mPrefs.drawQuality).toAscii());
+      file.write("\n");
+
+      file.write("LayerSkipSize: ");
+      file.write(QString::number(mPrefs.layerSkipSize).toAscii());
+      file.write("\n");
+
+      // Splicing properties.
+      file.write("PrefixCode: ");
+      file.write(mPrefs.customPrefixCode.toAscii());
+      file.write("\n");
+
+      file.write("ExportImportedStartCode: ");
+      file.write(mPrefs.exportImportedStartCode? "TRUE": "FALSE");
+      file.write("\n");
+
+      file.write("ExportComments: ");
+      file.write(mPrefs.exportComments? "TRUE": "FALSE");
+      file.write("\n");
+
+      file.write("ExportAllAxes: ");
+      file.write(mPrefs.exportAllAxes? "TRUE": "FALSE");
+      file.write("\n");
+
+      file.write("PrintSkirt: ");
+      file.write(mPrefs.printSkirt? "TRUE": "FALSE");
+      file.write("\n");
+
+      file.write("SkirtDistance: ");
+      file.write(QString::number(mPrefs.skirtDistance).toAscii());
+      file.write("\n");
+
+      // Printer properties.
+      int extruderCount = (int)mPrefs.extruderList.size();
+      file.write("ExtruderCount: ");
+      file.write(QString::number(extruderCount).toAscii());
+      file.write("\n");
+
+      for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+      {
+         const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+         file.write(" ExtruderIndex: ");
+         file.write(QString::number(extruderIndex).toAscii());
+         file.write("\n");
+
+         file.write("  Offset: X");
+         file.write(QString::number(extruder.offset[X]).toAscii());
+         file.write(" Y");
+         file.write(QString::number(extruder.offset[Y]).toAscii());
+         file.write(" Z");
+         file.write(QString::number(extruder.offset[Z]).toAscii());
+         file.write("\n");
+
+         file.write("  Flow: ");
+         file.write(QString::number(extruder.flow).toAscii());
+         file.write("\n");
+
+         file.write("  IdleTemp: ");
+         file.write(QString::number(extruder.idleTemp).toAscii());
+         file.write("\n");
+
+         file.write("  PrintTemp: ");
+         file.write(QString::number(extruder.printTemp).toAscii());
+         file.write("\n");
+
+         file.write("  Retraction: ");
+         file.write(QString::number(extruder.retraction).toAscii());
+         file.write("\n");
+
+         file.write("  Primer: ");
+         file.write(QString::number(extruder.primer).toAscii());
+         file.write("\n");
+
+         file.write("  Color: R");
+         file.write(QString::number(extruder.color.red()).toAscii());
+         file.write(" G");
+         file.write(QString::number(extruder.color.green()).toAscii());
+         file.write(" B");
+         file.write(QString::number(extruder.color.blue()).toAscii());
+         file.write("\n");
+
+         file.write(" ExtruderEndIndex\n");
+      }
+
+      file.write("PlatformWidth: ");
+      file.write(QString::number(mPrefs.platformWidth).toAscii());
+      file.write("\n");
+
+      file.write("PlatformHeight: ");
+      file.write(QString::number(mPrefs.platformHeight).toAscii());
+      file.write("\n");
+
+      // Advanced properties.
+      file.write("ExportAbsoluteMode: ");
+      file.write(mPrefs.exportAbsoluteMode? "TRUE": "FALSE");
+      file.write("\n");
+
+      file.write("ExportAbsoluteEMode: ");
+      file.write(mPrefs.exportAbsoluteEMode? "TRUE": "FALSE");
+      file.write("\n");
+
+      file.write("ImportRetraction: ");
+      file.write(QString::number(mPrefs.importRetraction).toAscii());
+      file.write("\n");
+
+      file.write("ImportPrimer: ");
+      file.write(QString::number(mPrefs.importPrimer).toAscii());
+      file.write("\n");
+
+      file.close();
+
+      QMessageBox::information(this, "Success!", "Configuration saved!", QMessageBox::Ok);
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onLoadConfigPressed()
 {
-   QMessageBox::information(this, "Load!", "Not implemented yet.", QMessageBox::Ok);
+   // Check for any previously used directories.
+   QSettings settings(COMPANY_NAME, APPLICATION_NAME);
+   QString lastDir = settings.value(LAST_CONFIG_FOLDER, "").toString();
+
+   QFileDialog dlg;
+   QString fileName = dlg.getOpenFileName(this, "Load Config File", lastDir, "Config (*.ini);; All Files (*.*)");
+   if (!fileName.isEmpty())
+   {
+      QFileInfo fileInfo = fileName;
+
+      // Remember this directory.
+      lastDir = fileInfo.absolutePath();
+      settings.setValue(LAST_CONFIG_FOLDER, lastDir);
+
+      GCodeParser parser;
+
+      if (!parser.loadFile(fileName))
+      {
+         // Failed to load the file.
+         QMessageBox::critical(this, "Failure!", "File not found.", QMessageBox::Ok, QMessageBox::NoButton);
+         return;
+      }
+
+      // Editor properties.
+      int extruderIndex = 0;
+      while (parser.parseNext())
+      {
+         // Editor properties.
+         if (parser.codeSeen("BackgroundColor:"))
+         {
+            if (parser.codeSeen(" R"))
+            {
+               mPrefs.backgroundColor.setRed(parser.codeValueInt());
+            }
+            if (parser.codeSeen(" G"))
+            {
+               mPrefs.backgroundColor.setGreen(parser.codeValueInt());
+            }
+            if (parser.codeSeen(" B"))
+            {
+               mPrefs.backgroundColor.setBlue(parser.codeValueInt());
+            }
+         }
+         else if (parser.codeSeen("UseDisplayLists:"))
+         {
+            mPrefs.useDisplayLists = parser.codeValue() == "TRUE";
+         }
+         else if (parser.codeSeen("DrawQuality:"))
+         {
+            mPrefs.drawQuality = (DrawQuality)parser.codeValueInt();
+         }
+         else if (parser.codeSeen("LayerSkipSize:"))
+         {
+            mPrefs.layerSkipSize = parser.codeValueInt();
+         }
+         // Splicing properties.
+         else if (parser.codeSeen("PrefixCode:"))
+         {
+            mPrefs.customPrefixCode = parser.codeValue();
+         }
+         else if (parser.codeSeen("ExportImportedStartCode:"))
+         {
+            mPrefs.exportImportedStartCode = parser.codeValue() == "TRUE";
+         }
+         else if (parser.codeSeen("ExportComments:"))
+         {
+            mPrefs.exportComments = parser.codeValue() == "TRUE";
+         }
+         else if (parser.codeSeen("ExportAllAxes:"))
+         {
+            mPrefs.exportAllAxes = parser.codeValue() == "TRUE";
+         }
+         else if (parser.codeSeen("PrintSkirt:"))
+         {
+            mPrefs.printSkirt = parser.codeValue() == "TRUE";
+         }
+         else if (parser.codeSeen("SkirtDistance:"))
+         {
+            mPrefs.skirtDistance = parser.codeValueDouble();
+         }
+         // Printer properties.
+         else if (parser.codeSeen("ExtruderCount:"))
+         {
+            int count = parser.codeValueInt();
+            if (count > 0)
+            {
+               mPrefs.extruderList.resize(count);
+            }
+         }
+         else if (parser.codeSeen("ExtruderIndex:"))
+         {
+            extruderIndex = parser.codeValueInt();
+            ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+            while (parser.parseNext())
+            {
+               if (parser.codeSeen("Offset:"))
+               {
+                  if (parser.codeSeen(" X"))
+                  {
+                     extruder.offset[X] = parser.codeValueDouble();
+                  }
+                  if (parser.codeSeen(" Y"))
+                  {
+                     extruder.offset[Y] = parser.codeValueDouble();
+                  }
+                  if (parser.codeSeen(" Z"))
+                  {
+                     extruder.offset[Z] = parser.codeValueDouble();
+                  }
+               }
+               else if (parser.codeSeen("Flow:"))
+               {
+                  extruder.flow = parser.codeValueDouble();
+               }
+               else if (parser.codeSeen("IdleTemp:"))
+               {
+                  extruder.idleTemp = parser.codeValueDouble();
+               }
+               else if (parser.codeSeen("PrintTemp:"))
+               {
+                  extruder.printTemp = parser.codeValueDouble();
+               }
+               else if (parser.codeSeen("Retraction:"))
+               {
+                  extruder.retraction = parser.codeValueDouble();
+               }
+               else if (parser.codeSeen("Primer:"))
+               {
+                  extruder.primer = parser.codeValueDouble();
+               }
+               else if (parser.codeSeen("Color:"))
+               {
+                  if (parser.codeSeen(" R"))
+                  {
+                     extruder.color.setRed(parser.codeValueInt());
+                  }
+                  if (parser.codeSeen(" G"))
+                  {
+                     extruder.color.setGreen(parser.codeValueInt());
+                  }
+                  if (parser.codeSeen(" B"))
+                  {
+                     extruder.color.setBlue(parser.codeValueInt());
+                  }
+               }
+               else if (parser.codeSeen("ExtruderEndIndex"))
+               {
+                  break;
+               }
+            }
+         }
+         else if (parser.codeSeen("PlatformWidth:"))
+         {
+            mPrefs.platformWidth = parser.codeValueInt();
+         }
+         else if (parser.codeSeen("PlatformHeight:"))
+         {
+            mPrefs.platformHeight = parser.codeValueInt();
+         }
+         // Advanced properties.
+         else if (parser.codeSeen("ExportAbsoluteMode:"))
+         {
+            mPrefs.exportAbsoluteMode = parser.codeValue() == "TRUE";
+         }
+         else if (parser.codeSeen("ExportAbsoluteEMode:"))
+         {
+            mPrefs.exportAbsoluteEMode = parser.codeValue() == "TRUE";
+         }
+         else if (parser.codeSeen("ImportRetraction:"))
+         {
+            mPrefs.importRetraction = parser.codeValueDouble();
+         }
+         else if (parser.codeSeen("ImportPrimer:"))
+         {
+            mPrefs.importPrimer = parser.codeValueDouble();
+         }
+      }
+
+      updateUI();
+
+      QMessageBox::information(this, "Success!", "Configuration saved!", QMessageBox::Ok);
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

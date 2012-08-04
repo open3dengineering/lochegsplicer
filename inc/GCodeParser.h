@@ -41,6 +41,11 @@ public:
    bool isOpen() const;
 
    /**
+    * Sets the comment markers that delimit the comment from the code.
+    */
+   void setCommentMarkers(const QByteArray& markers);
+
+   /**
     * Parses the file for the next gcode command line.
     *
     * @return  Returns false when the end of file has been reached.
@@ -50,13 +55,15 @@ public:
    /**
     * Retrieves whether a given code type belongs to this line.
     */
-   bool codeSeen(char code);
+   bool codeSeen(QString code);
 
    /**
     * Retrieves the value of the last seen code type
     */
-   double codeValue();
-   long   codeValueLong();
+   QString codeValue();
+   int     codeValueInt();
+   long    codeValueLong();
+   double  codeValueDouble();
 
    /**
     * Retrieves the entire gcode line value.
