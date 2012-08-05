@@ -111,12 +111,16 @@ void PreferencesDialog::onSaveConfigPressed()
       file.write("\n");
 
       // Splicing properties.
-      file.write("PrefixCode: ");
-      file.write(mPrefs.customPrefixCode.toAscii());
-      file.write("\n");
-
       file.write("ExportImportedStartCode: ");
       file.write(mPrefs.exportImportedStartCode? "TRUE": "FALSE");
+      file.write("\n");
+
+      file.write("PrefixCode: ");
+      file.write(mPrefs.prefixCode.toAscii());
+      file.write("\n");
+
+      file.write("PostfixCode: ");
+      file.write(mPrefs.postfixCode.toAscii());
       file.write("\n");
 
       file.write("ExportComments: ");
@@ -157,10 +161,6 @@ void PreferencesDialog::onSaveConfigPressed()
          file.write(QString::number(extruder.offset[Z]).toAscii());
          file.write("\n");
 
-         file.write("  Flow: ");
-         file.write(QString::number(extruder.flow).toAscii());
-         file.write("\n");
-
          file.write("  IdleTemp: ");
          file.write(QString::number(extruder.idleTemp).toAscii());
          file.write("\n");
@@ -169,12 +169,24 @@ void PreferencesDialog::onSaveConfigPressed()
          file.write(QString::number(extruder.printTemp).toAscii());
          file.write("\n");
 
+         file.write("  Flow: ");
+         file.write(QString::number(extruder.flow).toAscii());
+         file.write("\n");
+
          file.write("  Retraction: ");
          file.write(QString::number(extruder.retraction).toAscii());
          file.write("\n");
 
          file.write("  Primer: ");
          file.write(QString::number(extruder.primer).toAscii());
+         file.write("\n");
+
+         file.write("  TravelSpeed: ");
+         file.write(QString::number(extruder.travelSpeed).toAscii());
+         file.write("\n");
+
+         file.write("  RetractSpeed: ");
+         file.write(QString::number(extruder.travelSpeed).toAscii());
          file.write("\n");
 
          file.write("  Color: R");
@@ -278,13 +290,17 @@ void PreferencesDialog::onLoadConfigPressed()
             mPrefs.layerSkipSize = parser.codeValueInt();
          }
          // Splicing properties.
-         else if (parser.codeSeen("PrefixCode:"))
-         {
-            mPrefs.customPrefixCode = parser.codeValue();
-         }
          else if (parser.codeSeen("ExportImportedStartCode:"))
          {
             mPrefs.exportImportedStartCode = parser.codeValue() == "TRUE";
+         }
+         else if (parser.codeSeen("PrefixCode:"))
+         {
+            mPrefs.prefixCode = parser.codeValue();
+         }
+         else if (parser.codeSeen("PostfixCode:"))
+         {
+            mPrefs.postfixCode = parser.codeValue();
          }
          else if (parser.codeSeen("ExportComments:"))
          {
@@ -333,10 +349,6 @@ void PreferencesDialog::onLoadConfigPressed()
                      extruder.offset[Z] = parser.codeValueDouble();
                   }
                }
-               else if (parser.codeSeen("Flow:"))
-               {
-                  extruder.flow = parser.codeValueDouble();
-               }
                else if (parser.codeSeen("IdleTemp:"))
                {
                   extruder.idleTemp = parser.codeValueDouble();
@@ -345,6 +357,10 @@ void PreferencesDialog::onLoadConfigPressed()
                {
                   extruder.printTemp = parser.codeValueDouble();
                }
+               else if (parser.codeSeen("Flow:"))
+               {
+                  extruder.flow = parser.codeValueDouble();
+               }
                else if (parser.codeSeen("Retraction:"))
                {
                   extruder.retraction = parser.codeValueDouble();
@@ -352,6 +368,14 @@ void PreferencesDialog::onLoadConfigPressed()
                else if (parser.codeSeen("Primer:"))
                {
                   extruder.primer = parser.codeValueDouble();
+               }
+               else if (parser.codeSeen("TravelSpeed:"))
+               {
+                  extruder.travelSpeed = parser.codeValueDouble();
+               }
+               else if (parser.codeSeen("RetractSpeed:"))
+               {
+                  extruder.retractSpeed = parser.codeValueDouble();
                }
                else if (parser.codeSeen("Color:"))
                {
@@ -437,15 +461,21 @@ void PreferencesDialog::onBackgroundColorPressed()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void PreferencesDialog::onPrefixChanged()
-{
-   mPrefs.customPrefixCode = mGCodePrefixEdit->toPlainText();
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onExportImportedStartCodeChanged(int state)
 {
    mPrefs.exportImportedStartCode = (state == Qt::Checked);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onPrefixChanged()
+{
+   mPrefs.prefixCode = mGCodePrefixEdit->toPlainText();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onPostfixChanged()
+{
+   mPrefs.postfixCode = mGCodePostfixEdit->toPlainText();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -490,16 +520,20 @@ void PreferencesDialog::onExtruderSelected(int index)
    mExtruderOffsetYSpin->setValue(data.offset[Y]);
    mExtruderOffsetZSpin->setEnabled(true);
    mExtruderOffsetZSpin->setValue(data.offset[Z]);
-   mExtruderFlowSpin->setEnabled(true);
-   mExtruderFlowSpin->setValue(data.flow);
    mExtruderIdleTempSpin->setEnabled(true);
    mExtruderIdleTempSpin->setValue(data.idleTemp);
    mExtruderPrintTempSpin->setEnabled(true);
    mExtruderPrintTempSpin->setValue(data.printTemp);
+   mExtruderFlowSpin->setEnabled(true);
+   mExtruderFlowSpin->setValue(data.flow);
    mExtruderRetractSpin->setEnabled(true);
    mExtruderRetractSpin->setValue(data.retraction);
    mExtruderPrimerSpin->setEnabled(true);
    mExtruderPrimerSpin->setValue(data.primer);
+   mExtruderTravelSpeedSpin->setEnabled(true);
+   mExtruderTravelSpeedSpin->setValue(data.travelSpeed);
+   mExtruderRetractSpeedSpin->setEnabled(true);
+   mExtruderRetractSpeedSpin->setValue(data.retractSpeed);
    mExtruderColorButton->setEnabled(true);
    QPixmap pix = QPixmap(QSize(16, 16));
    pix.fill(data.color);
@@ -582,19 +616,6 @@ void PreferencesDialog::onExtruderOffsetZChanged(double value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void PreferencesDialog::onExtruderFlowChanged(double value)
-{
-   if (mCurrentExtruder < 0 || mCurrentExtruder >= (int)mPrefs.extruderList.size())
-   {
-      return;
-   }
-
-   ExtruderData& data = mPrefs.extruderList[mCurrentExtruder];
-
-   data.flow = value;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onExtruderIdleTempChanged(double value)
 {
    if (mCurrentExtruder < 0 || mCurrentExtruder >= (int)mPrefs.extruderList.size())
@@ -621,6 +642,19 @@ void PreferencesDialog::onExtruderPrintTempChanged(double value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExtruderFlowChanged(double value)
+{
+   if (mCurrentExtruder < 0 || mCurrentExtruder >= (int)mPrefs.extruderList.size())
+   {
+      return;
+   }
+
+   ExtruderData& data = mPrefs.extruderList[mCurrentExtruder];
+
+   data.flow = value;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void PreferencesDialog::onExtruderRetractChanged(double value)
 {
    if (mCurrentExtruder < 0 || mCurrentExtruder >= (int)mPrefs.extruderList.size())
@@ -644,6 +678,32 @@ void PreferencesDialog::onExtruderPrimerChanged(double value)
    ExtruderData& data = mPrefs.extruderList[mCurrentExtruder];
 
    data.primer = value;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExtruderTravelSpeedChanged(double value)
+{
+   if (mCurrentExtruder < 0 || mCurrentExtruder >= (int)mPrefs.extruderList.size())
+   {
+      return;
+   }
+
+   ExtruderData& data = mPrefs.extruderList[mCurrentExtruder];
+
+   data.travelSpeed = value;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onExtruderRetractSpeedChanged(double value)
+{
+   if (mCurrentExtruder < 0 || mCurrentExtruder >= (int)mPrefs.extruderList.size())
+   {
+      return;
+   }
+
+   ExtruderData& data = mPrefs.extruderList[mCurrentExtruder];
+
+   data.retractSpeed = value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -809,31 +869,35 @@ void PreferencesDialog::setupUI()
       QGroupBox* gcodeGroup = new QGroupBox("Export");
       splicingLayout->addWidget(gcodeGroup);
 
-      QVBoxLayout* gcodeLayout = new QVBoxLayout();
+      QGridLayout* gcodeLayout = new QGridLayout();
       gcodeGroup->setLayout(gcodeLayout);
 
       // Export start code from imported objects.
       mExportImportedStartCodeCheckbox = new QCheckBox("Export Imported Start Code");
       mExportImportedStartCodeCheckbox->setToolTip("This option will include the start code found in the first imported object.  The code\nwill appear at the beginning of the file followed by the below GCode Prefix.");
-      gcodeLayout->addWidget(mExportImportedStartCodeCheckbox);
+      gcodeLayout->addWidget(mExportImportedStartCodeCheckbox, 0, 0, 1, 2);
 
       QLabel* prefixLabel = new QLabel("GCode Prefix:");
-      gcodeLayout->addWidget(prefixLabel);
+      gcodeLayout->addWidget(prefixLabel, 1, 0, 1, 1);
 
       mGCodePrefixEdit = new QTextEdit();
-      mGCodePrefixEdit->setToolTip("GCode that will be inserted at the beginning of the spliced output file.");
-      gcodeLayout->addWidget(mGCodePrefixEdit);
+      mGCodePrefixEdit->setToolTip("GCode that will be inserted at the beginning of the spliced output file\n(directly after the imported start code if enabled).");
+      gcodeLayout->addWidget(mGCodePrefixEdit, 2, 0, 1, 1);
+
+      QLabel* postfixLabel = new QLabel("GCode Postfix:");
+      gcodeLayout->addWidget(postfixLabel, 1, 1, 1, 1);
+
+      mGCodePostfixEdit = new QTextEdit();
+      mGCodePostfixEdit->setToolTip("GCode that will be appended to the end of the spliced output file.");
+      gcodeLayout->addWidget(mGCodePostfixEdit, 2, 1, 1, 1);
 
       // Export comments and all axes.
-      QHBoxLayout* exportLayout = new QHBoxLayout();
-      gcodeLayout->addLayout(exportLayout);
-
       mExportCommentsCheckbox = new QCheckBox("Export Comments");
       mExportCommentsCheckbox->setToolTip("This will include comments in the spliced output file.");
       mExportAllAxesCheckbox = new QCheckBox("Export All Axes");
       mExportAllAxesCheckbox->setToolTip("This option will include gcode for all axes even if they are unchanged.");
-      exportLayout->addWidget(mExportCommentsCheckbox);
-      exportLayout->addWidget(mExportAllAxesCheckbox);
+      gcodeLayout->addWidget(mExportCommentsCheckbox, 3, 0, 1, 1);
+      gcodeLayout->addWidget(mExportAllAxesCheckbox, 3, 1, 1, 1);
 
       // Skirt.
       QGroupBox* skirtGroup = new QGroupBox("Skirt");
@@ -841,6 +905,7 @@ void PreferencesDialog::setupUI()
 
       QHBoxLayout* skirtLayout = new QHBoxLayout();
       skirtGroup->setLayout(skirtLayout);
+      skirtGroup->setEnabled(false);
 
       mPrintSkirtCheckbox = new QCheckBox("Enable Skirt");
       mPrintSkirtCheckbox->setLayoutDirection(Qt::RightToLeft);
@@ -874,63 +939,85 @@ void PreferencesDialog::setupUI()
 
       mExtruderList = new QListWidget();
       mExtruderList->setToolTip("List of all extruders that the printer controls.");
-      extruderLayout->addWidget(mExtruderList, 0, 0, 8, 2);
+      extruderLayout->addWidget(mExtruderList, 0, 0, 5, 2);
 
       // Extruder Properties.
-      QLabel* extruderOffsetXLabel = new QLabel("Offset X: ");
+      QLabel* extruderOffsetXLabel = new QLabel("Offset X:");
       extruderOffsetXLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-      QLabel* extruderOffsetYLabel = new QLabel("Y: ");
+      QLabel* extruderOffsetYLabel = new QLabel("Y:");
       extruderOffsetYLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-      QLabel* extruderOffsetZLabel = new QLabel("Z: ");
+      QLabel* extruderOffsetZLabel = new QLabel("Z:");
       extruderOffsetZLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-      QLabel* extruderFlowLabel = new QLabel("Flow %: ");
-      extruderFlowLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-      QLabel* extruderIdleTempLabel = new QLabel("Idle Temp: ");
+      QLabel* extruderIdleTempLabel = new QLabel("Idle Temp:");
       extruderIdleTempLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-      QLabel* extruderPrintTempLabel = new QLabel("Print Temp: ");
+      QLabel* extruderPrintTempLabel = new QLabel("Print Temp:");
       extruderPrintTempLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-      QLabel* extruderRetractLabel = new QLabel("Retraction: ");
+      QLabel* extruderFlowLabel = new QLabel("Flow:");
+      extruderFlowLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+      QLabel* extruderRetractLabel = new QLabel("Retraction:");
       extruderRetractLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-      QLabel* extruderPrimerLabel = new QLabel("Primer: ");
+      QLabel* extruderPrimerLabel = new QLabel("Primer:");
       extruderPrimerLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+      QLabel* extruderTravelSpeedLabel = new QLabel("Travel Speed:");
+      extruderTravelSpeedLabel->setAlignment(Qt::AlignCenter | Qt::AlignRight);
+      QLabel* extruderRetractSpeedLabel = new QLabel("Retract Speed:");
+      extruderRetractSpeedLabel->setAlignment(Qt::AlignCenter | Qt::AlignRight);
 
       mExtruderOffsetXSpin = new QDoubleSpinBox();
       mExtruderOffsetXSpin->setMinimum(0.0);
       mExtruderOffsetXSpin->setMaximum(1000.0);
+      mExtruderOffsetXSpin->setSuffix("mm");
       mExtruderOffsetXSpin->setDecimals(4);
       mExtruderOffsetXSpin->setToolTip("The X coordinate offset of this extruder relative to the primary.");
       mExtruderOffsetYSpin = new QDoubleSpinBox();
       mExtruderOffsetYSpin->setMinimum(0.0);
       mExtruderOffsetYSpin->setMaximum(1000.0);
+      mExtruderOffsetYSpin->setSuffix("mm");
       mExtruderOffsetYSpin->setDecimals(4);
       mExtruderOffsetYSpin->setToolTip("The Y coordinate offset of this extruder relative to the primary.");
       mExtruderOffsetZSpin = new QDoubleSpinBox();
       mExtruderOffsetZSpin->setMinimum(0.0);
       mExtruderOffsetZSpin->setMaximum(1000.0);
+      mExtruderOffsetZSpin->setSuffix("mm");
       mExtruderOffsetZSpin->setDecimals(4);
       mExtruderOffsetZSpin->setToolTip("The Z coordinate offset of this extruder relative to the primary.");
-      mExtruderFlowSpin = new QDoubleSpinBox();
-      mExtruderFlowSpin->setMinimum(0.0);
-      mExtruderFlowSpin->setMaximum(100.0);
-      mExtruderFlowSpin->setSingleStep(0.1);
-      mExtruderFlowSpin->setDecimals(4);
-      mExtruderFlowSpin->setToolTip("A multiplier to apply to the extrusion flow values of the spliced output file.");
       mExtruderIdleTempSpin = new QDoubleSpinBox();
       mExtruderIdleTempSpin->setMinimum(0.0);
       mExtruderIdleTempSpin->setMaximum(1000.0);
-      mExtruderIdleTempSpin->setToolTip("The temperature when this extruder is idle (0 = Keep current temp).");
+      mExtruderIdleTempSpin->setSuffix("C");
+      mExtruderIdleTempSpin->setToolTip("The temperature when this extruder is idle.");
       mExtruderPrintTempSpin = new QDoubleSpinBox();
       mExtruderPrintTempSpin->setMinimum(0.0);
       mExtruderPrintTempSpin->setMaximum(1000.0);
-      mExtruderPrintTempSpin->setToolTip("The temperature when this extruder is printing (0 = Keep current temp).");
+      mExtruderPrintTempSpin->setSuffix("C");
+      mExtruderPrintTempSpin->setToolTip("The temperature when this extruder is printing.");
+      mExtruderFlowSpin = new QDoubleSpinBox();
+      mExtruderFlowSpin->setMinimum(0.0);
+      mExtruderFlowSpin->setMaximum(100.0);
+      mExtruderFlowSpin->setSuffix("%");
+      mExtruderFlowSpin->setSingleStep(0.1);
+      mExtruderFlowSpin->setDecimals(4);
+      mExtruderFlowSpin->setToolTip("A multiplier to apply to the extrusion flow values of the spliced output file.");
       mExtruderRetractSpin = new QDoubleSpinBox();
       mExtruderRetractSpin->setMinimum(0.0);
       mExtruderRetractSpin->setMaximum(1000.0);
+      mExtruderRetractSpin->setSuffix("mm");
       mExtruderRetractSpin->setToolTip("The amount to retract the extruder when it is moving into idle mode.");
       mExtruderPrimerSpin = new QDoubleSpinBox();
       mExtruderPrimerSpin->setMinimum(0.0);
       mExtruderPrimerSpin->setMaximum(1000.0);
+      mExtruderPrimerSpin->setSuffix("mm");
       mExtruderPrimerSpin->setToolTip("The amount to prime the extruder when it is being restored to print mode.");
+      mExtruderTravelSpeedSpin = new QDoubleSpinBox();
+      mExtruderTravelSpeedSpin->setMinimum(0.0);
+      mExtruderTravelSpeedSpin->setMaximum(1000.0);
+      mExtruderTravelSpeedSpin->setSuffix("mm/sec");
+      mExtruderTravelSpeedSpin->setToolTip("Travel speed of the extruder (in mm/sec) when performing the extruder swap.");
+      mExtruderRetractSpeedSpin = new QDoubleSpinBox();
+      mExtruderRetractSpeedSpin->setMinimum(0.0);
+      mExtruderRetractSpeedSpin->setMaximum(1000.0);
+      mExtruderRetractSpeedSpin->setSuffix("mm/sec");
+      mExtruderRetractSpeedSpin->setToolTip("Retraction and prime speed of the extruder (in mm/sec).");
       mExtruderColorButton = new QPushButton("Color");
       QPixmap pix = QPixmap(QSize(16, 16));
       pix.fill(Qt::darkGray);
@@ -942,33 +1029,37 @@ void PreferencesDialog::setupUI()
       line->setGeometry(QRect(0, 0, 3, 1000));
       line->setFrameShape(QFrame::VLine);
       line->setFrameShadow(QFrame::Sunken);
-      extruderLayout->addWidget(line,                  0, 2, 9, 1);
+      extruderLayout->addWidget(line,                      0, 2, 6, 1);
 
-      extruderLayout->addWidget(extruderOffsetXLabel,  0, 3, 1, 1);
-      extruderLayout->addWidget(mExtruderOffsetXSpin,  0, 4, 1, 1);
-      extruderLayout->addWidget(extruderOffsetYLabel,  1, 3, 1, 1);
-      extruderLayout->addWidget(mExtruderOffsetYSpin,  1, 4, 1, 1);
-      extruderLayout->addWidget(extruderOffsetZLabel,  2, 3, 1, 1);
-      extruderLayout->addWidget(mExtruderOffsetZSpin,  2, 4, 1, 1);
-      extruderLayout->addWidget(extruderFlowLabel,     3, 3, 1, 1);
-      extruderLayout->addWidget(mExtruderFlowSpin,     3, 4, 1, 1);
-      extruderLayout->addWidget(extruderIdleTempLabel, 4, 3, 1, 1);
-      extruderLayout->addWidget(mExtruderIdleTempSpin, 4, 4, 1, 1);
-      extruderLayout->addWidget(extruderPrintTempLabel,5, 3, 1, 1);
-      extruderLayout->addWidget(mExtruderPrintTempSpin,5, 4, 1, 1);
-      extruderLayout->addWidget(extruderRetractLabel,  6, 3, 1, 1);
-      extruderLayout->addWidget(mExtruderRetractSpin,  6, 4, 1, 1);
-      extruderLayout->addWidget(extruderPrimerLabel,   7, 3, 1, 1);
-      extruderLayout->addWidget(mExtruderPrimerSpin,   7, 4, 1, 1);
-      extruderLayout->addWidget(mExtruderColorButton,  8, 3, 1, 2);
+      extruderLayout->addWidget(extruderOffsetXLabel,      0, 3, 1, 1);
+      extruderLayout->addWidget(mExtruderOffsetXSpin,      0, 4, 1, 1);
+      extruderLayout->addWidget(extruderOffsetYLabel,      1, 3, 1, 1);
+      extruderLayout->addWidget(mExtruderOffsetYSpin,      1, 4, 1, 1);
+      extruderLayout->addWidget(extruderOffsetZLabel,      2, 3, 1, 1);
+      extruderLayout->addWidget(mExtruderOffsetZSpin,      2, 4, 1, 1);
+      extruderLayout->addWidget(extruderIdleTempLabel,     3, 3, 1, 1);
+      extruderLayout->addWidget(mExtruderIdleTempSpin,     3, 4, 1, 1);
+      extruderLayout->addWidget(extruderPrintTempLabel,    4, 3, 1, 1);
+      extruderLayout->addWidget(mExtruderPrintTempSpin,    4, 4, 1, 1);
+      extruderLayout->addWidget(extruderFlowLabel,         0, 5, 1, 1);
+      extruderLayout->addWidget(mExtruderFlowSpin,         0, 6, 1, 1);
+      extruderLayout->addWidget(extruderRetractLabel,      1, 5, 1, 1);
+      extruderLayout->addWidget(mExtruderRetractSpin,      1, 6, 1, 1);
+      extruderLayout->addWidget(extruderPrimerLabel,       2, 5, 1, 1);
+      extruderLayout->addWidget(mExtruderPrimerSpin,       2, 6, 1, 1);
+      extruderLayout->addWidget(extruderTravelSpeedLabel,  3, 5, 1, 1);
+      extruderLayout->addWidget(mExtruderTravelSpeedSpin,  3, 6, 1, 1);
+      extruderLayout->addWidget(extruderRetractSpeedLabel, 4, 5, 1, 1);
+      extruderLayout->addWidget(mExtruderRetractSpeedSpin, 4, 6, 1, 1);
+      extruderLayout->addWidget(mExtruderColorButton,      5, 3, 1, 4);
 
       // Add/Remove buttons.
       mAddExtruderButton = new QPushButton("Add");
       mAddExtruderButton->setToolTip("Add an extruder to the list.");
       mRemoveExtruderButton = new QPushButton("Remove");
       mRemoveExtruderButton->setToolTip("Remove the last extruder from the list.");
-      extruderLayout->addWidget(mAddExtruderButton, 8, 0, 1, 1);
-      extruderLayout->addWidget(mRemoveExtruderButton, 8, 1, 1, 1);
+      extruderLayout->addWidget(mAddExtruderButton, 5, 0, 1, 1);
+      extruderLayout->addWidget(mRemoveExtruderButton, 5, 1, 1, 1);
 
       if (mPrefs.extruderList.empty())
       {
@@ -1097,8 +1188,9 @@ void PreferencesDialog::setupConnections()
    connect(mBackgroundColorButton,           SIGNAL(pressed()),                  this, SLOT(onBackgroundColorPressed()));
 
    //// Splicing Tab.
-   connect(mGCodePrefixEdit,                 SIGNAL(textChanged()),              this, SLOT(onPrefixChanged()));
    connect(mExportImportedStartCodeCheckbox, SIGNAL(stateChanged(int)),          this, SLOT(onExportImportedStartCodeChanged(int)));
+   connect(mGCodePrefixEdit,                 SIGNAL(textChanged()),              this, SLOT(onPrefixChanged()));
+   connect(mGCodePostfixEdit,                SIGNAL(textChanged()),              this, SLOT(onPostfixChanged()));
    connect(mExportCommentsCheckbox,          SIGNAL(stateChanged(int)),          this, SLOT(onExportCommentsChanged(int)));
    connect(mExportAllAxesCheckbox,           SIGNAL(stateChanged(int)),          this, SLOT(onExportAllAxesChanged(int)));
    connect(mPrintSkirtCheckbox,              SIGNAL(stateChanged(int)),          this, SLOT(onPrintSkirtChanged(int)));
@@ -1116,6 +1208,8 @@ void PreferencesDialog::setupConnections()
    connect(mExtruderPrintTempSpin,           SIGNAL(valueChanged(double)),       this, SLOT(onExtruderPrintTempChanged(double)));
    connect(mExtruderRetractSpin,             SIGNAL(valueChanged(double)),       this, SLOT(onExtruderRetractChanged(double)));
    connect(mExtruderPrimerSpin,              SIGNAL(valueChanged(double)),       this, SLOT(onExtruderPrimerChanged(double)));
+   connect(mExtruderTravelSpeedSpin,         SIGNAL(valueChanged(double)),       this, SLOT(onExtruderTravelSpeedChanged(double)));
+   connect(mExtruderRetractSpeedSpin,        SIGNAL(valueChanged(double)),       this, SLOT(onExtruderRetractSpeedChanged(double)));
    connect(mExtruderColorButton,             SIGNAL(pressed()),                  this, SLOT(onExtruderColorPressed()));
    
    connect(mPlatformWidthSpin,               SIGNAL(valueChanged(double)),       this, SLOT(onPlatformWidthChanged(double)));
@@ -1143,8 +1237,9 @@ void PreferencesDialog::updateUI()
    setBackgroundColor(mPrefs.backgroundColor);
 
    // Splicing Tab.
-   mGCodePrefixEdit->setText(mPrefs.customPrefixCode);
    mExportImportedStartCodeCheckbox->setChecked(mPrefs.exportImportedStartCode);
+   mGCodePrefixEdit->setText(mPrefs.prefixCode);
+   mGCodePostfixEdit->setText(mPrefs.postfixCode);
    mExportCommentsCheckbox->setChecked(mPrefs.exportComments);
    mExportAllAxesCheckbox->setChecked(mPrefs.exportAllAxes);
    mPrintSkirtCheckbox->setChecked(mPrefs.printSkirt);
@@ -1166,15 +1261,19 @@ void PreferencesDialog::updateUI()
    mExtruderPrintTempSpin->setEnabled(false);
    mExtruderRetractSpin->setEnabled(false);
    mExtruderPrimerSpin->setEnabled(false);
+   mExtruderTravelSpeedSpin->setEnabled(false);
+   mExtruderRetractSpeedSpin->setEnabled(false);
    mExtruderColorButton->setEnabled(false);
    mExtruderOffsetXSpin->setValue(defaults.offset[X]);
    mExtruderOffsetYSpin->setValue(defaults.offset[Y]);
    mExtruderOffsetZSpin->setValue(defaults.offset[Z]);
-   mExtruderFlowSpin->setValue(defaults.flow);
    mExtruderIdleTempSpin->setValue(defaults.idleTemp);
    mExtruderPrintTempSpin->setValue(defaults.printTemp);
+   mExtruderFlowSpin->setValue(defaults.flow);
    mExtruderRetractSpin->setValue(defaults.retraction);
    mExtruderPrimerSpin->setValue(defaults.primer);
+   mExtruderTravelSpeedSpin->setValue(defaults.travelSpeed);
+   mExtruderRetractSpeedSpin->setValue(defaults.retractSpeed);
    QPixmap pix = QPixmap(QSize(16, 16));
    pix.fill(Qt::darkGray);
    mExtruderColorButton->setIcon(QIcon(pix));
@@ -1237,8 +1336,9 @@ void PreferencesDialog::storeLastPreferences()
       settings.setValue("UseDisplayLists", mPrefs.useDisplayLists);
       settings.setValue("DrawQuality", (int)mPrefs.drawQuality);
       // Splicing properties.
-      settings.setValue("CustomPrefixCode", mPrefs.customPrefixCode);
       settings.setValue("ExportImportedStartCode", mPrefs.exportImportedStartCode);
+      settings.setValue("CustomPrefixCode", mPrefs.prefixCode);
+      settings.setValue("CustomPostfixCode", mPrefs.postfixCode);
       settings.setValue("ExportComments", mPrefs.exportComments);
       settings.setValue("ExportAllAxes", mPrefs.exportAllAxes);
       settings.setValue("PrintSkirt", mPrefs.printSkirt);
@@ -1253,11 +1353,13 @@ void PreferencesDialog::storeLastPreferences()
          settings.setValue("OffsetX", data.offset[X]);
          settings.setValue("OffsetY", data.offset[Y]);
          settings.setValue("OffsetZ", data.offset[Z]);
-         settings.setValue("Flow", data.flow);
          settings.setValue("IdleTemp", data.idleTemp);
          settings.setValue("PrintTemp", data.printTemp);
+         settings.setValue("Flow", data.flow);
          settings.setValue("Retraction", data.retraction);
          settings.setValue("Primer", data.primer);
+         settings.setValue("TravelSpeed", data.travelSpeed);
+         settings.setValue("RetractSpeed", data.retractSpeed);
          settings.setValue("Color", data.color);
       }
       settings.endArray();
@@ -1290,8 +1392,9 @@ bool PreferencesDialog::restoreLastPreferences(PreferenceData& prefs)
       prefs.useDisplayLists = settings.value("UseDisplayLists", defaults.useDisplayLists).toBool();
       prefs.drawQuality = (DrawQuality)settings.value("DrawQuality", (int)defaults.drawQuality).toInt();
       // Splicing properties.
-      prefs.customPrefixCode = settings.value("CustomPrefixCode", defaults.customPrefixCode).toString();
       prefs.exportImportedStartCode = settings.value("ExportImportedStartCode", defaults.exportImportedStartCode).toBool();
+      prefs.prefixCode = settings.value("CustomPrefixCode", defaults.prefixCode).toString();
+      prefs.postfixCode = settings.value("CustomPostfixCode", defaults.postfixCode).toString();
       prefs.exportComments = settings.value("ExportComments", defaults.exportComments).toBool();
       prefs.exportAllAxes = settings.value("ExportAllAxes", defaults.exportAllAxes).toBool();
       prefs.printSkirt = settings.value("PrintSkirt", defaults.printSkirt).toBool();
@@ -1307,11 +1410,13 @@ bool PreferencesDialog::restoreLastPreferences(PreferenceData& prefs)
          data.offset[X] = settings.value("OffsetX", defaultExtruder.offset[X]).toDouble();
          data.offset[Y] = settings.value("OffsetY", defaultExtruder.offset[Y]).toDouble();
          data.offset[Z] = settings.value("OffsetZ", defaultExtruder.offset[Z]).toDouble();
-         data.flow = settings.value("Flow", defaultExtruder.flow).toDouble();
          data.idleTemp = settings.value("IdleTemp", defaultExtruder.idleTemp).toDouble();
          data.printTemp = settings.value("PrintTemp", defaultExtruder.printTemp).toDouble();
+         data.flow = settings.value("Flow", defaultExtruder.flow).toDouble();
          data.retraction = settings.value("Retraction", defaultExtruder.retraction).toDouble();
          data.primer = settings.value("Primer", defaultExtruder.primer).toDouble();
+         data.travelSpeed = settings.value("TravelSpeed", defaultExtruder.travelSpeed).toDouble();
+         data.retractSpeed = settings.value("RetractSpeed", defaultExtruder.retractSpeed).toDouble();
          data.color = settings.value("Color", defaultExtruder.color).value<QColor>();
       }
       settings.endArray();

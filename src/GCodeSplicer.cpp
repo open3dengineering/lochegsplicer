@@ -22,6 +22,8 @@
 #include <GCodeParser.h>
 #include <GCodeObject.h>
 
+#include <QtGui/QtGui>
+
 ////////////////////////////////////////////////////////////////////////////////
 GCodeSplicer::GCodeSplicer(const PreferenceData& prefs)
    : mPrefs(prefs)
@@ -73,7 +75,7 @@ bool GCodeSplicer::addObject(const GCodeObject* object)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool GCodeSplicer::build(const QString& fileName)
+bool GCodeSplicer::build(const QString& fileName, QWidget* parent)
 {
    if (mObjectList.empty())
    {
@@ -89,7 +91,14 @@ bool GCodeSplicer::build(const QString& fileName)
       return false;
    }
 
-   file.write("; Spliced using LocheGSplicer BETA\n");
+   QProgressDialog progressDialog("Splicing...", "Cancel", 0, 100, parent);
+   progressDialog.setWindowModality(Qt::WindowModal);
+   progressDialog.setFixedSize(progressDialog.sizeHint());
+   progressDialog.show();
+
+   file.write("; Spliced using LocheGSplicer ");
+   file.write(VERSION.toAscii());
+   file.write("\n");
 
    // Start by assembling the initialization code.  Start with
    // the header code from the first object, then include our
@@ -121,9 +130,9 @@ bool GCodeSplicer::build(const QString& fileName)
       }
    }
 
-   if (!mPrefs.customPrefixCode.isEmpty())
+   if (!mPrefs.prefixCode.isEmpty())
    {
-      file.write(mPrefs.customPrefixCode.toAscii());
+      file.write(mPrefs.prefixCode.toAscii());
       file.write("\n");
    }
 
@@ -161,6 +170,10 @@ bool GCodeSplicer::build(const QString& fileName)
    double currentLayerHeight = 0.0;
    int lastExtruder = 0;
    int layerIndex = 1;
+   bool setupNewExtruder = false;
+   bool initExtruders = true;
+
+   progressDialog.setMaximum(getTotalLayerCount());
 
    // Iterate through each layer.
    while (getNextLayer(currentLayerHeight, currentLayerHeight))
@@ -191,8 +204,100 @@ bool GCodeSplicer::build(const QString& fileName)
          for (int objectIndex = 0; objectIndex < objectCount; ++objectIndex)
          {
             const GCodeObject* object = mObjectList[objectIndex];
-            if (object && object->getExtruder() == currentExtruder)
+            if (object && (initExtruders || object->getExtruder() == currentExtruder))
             {
+               // If we are still waiting to initialize our extruders,
+               // we need to set them up to be idle except for the
+               // one we are starting the print with.
+               if (initExtruders)
+               {
+                  initExtruders = false;
+                  currentExtruder = object->getExtruder();
+
+                  // Set all extruders to print temp first so we can
+                  // retract them.  Then put the all of them to idle
+                  // except the one we are going to print with.
+                  if (mPrefs.exportComments)
+                  {
+                     file.write("; Do some initialization on our extruders by retracting\n");
+                     file.write("; our idle ones and setting our initial temperatures\n");
+                  }
+
+                  // Start with a non-waiting temp change so we can quickly
+                  // apply this to all of the extruders at once.
+                  int extruderCount = (int)mPrefs.extruderList.size();
+                  for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+                  {
+                     const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+                     file.write("T");
+                     file.write(QString::number(extruderIndex).toAscii());
+                     file.write("\n");
+
+                     file.write("M104 S");
+                     file.write(QString::number(extruder.printTemp).toAscii());
+                     file.write("\n");
+                  }
+
+                  // Once all of the extruders are set to heat up, let's wait
+                  // for them to finish heating up.
+                  for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+                  {
+                     const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+                     file.write("T");
+                     file.write(QString::number(extruderIndex).toAscii());
+                     file.write("\n");
+
+                     file.write("M109 S");
+                     file.write(QString::number(extruder.printTemp).toAscii());
+                     file.write("\n");
+                  }
+
+                  // Once the extruders reach their temperatures, we can
+                  // retract them.
+                  for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+                  {
+                     const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+                     if (extruderIndex != currentExtruder)
+                     {
+                        file.write("T");
+                        file.write(QString::number(extruderIndex).toAscii());
+                        file.write("\n");
+
+                        file.write("G1 F");
+                        file.write(QString::number(extruder.retractSpeed * 60.0).toAscii());
+                        file.write("\n");
+
+                        file.write("G1 E");
+                        file.write(QString::number(-extruder.retraction * extruder.flow).toAscii());
+                        file.write("\n");
+                     }
+                  }
+
+                  // Return all idle extruders to their idle temperatures.
+                  for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+                  {
+                     const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+                     if (extruderIndex != currentExtruder)
+                     {
+                        file.write("T");
+                        file.write(QString::number(extruderIndex).toAscii());
+                        file.write("\n");
+
+                        file.write("M104 S");
+                        file.write(QString::number(extruder.idleTemp).toAscii());
+                        file.write("\n");
+                     }
+                  }
+
+                  // Now set it to our first extruder and begin printing.
+                  file.write("T");
+                  file.write(QString::number(currentExtruder).toAscii());
+                  file.write("\n");
+               }
                std::vector<GCodeCommand> layer;
                object->getLayerAtHeight(layer, currentLayerHeight);
 
@@ -211,29 +316,53 @@ bool GCodeSplicer::build(const QString& fileName)
                         file.write("\n; ++++++++++++++++++++++++++++++++++++++\n");
                      }
 
-                     // TODO: Perform an extruder swap.
-                     // Not entirely sure what this will involve in the end,
-                     // but my guess is probably something around:
-                     // - Retract the current extruder
-                     // - Wipe the current extruder
-                     // - Set the current extruder to an idle temp
-                     // - Swap to the next extruder
-                     // - Heat up the next extruder
-                     // - Prime the next extruder
-                     // - begin printing
-                     //
-                     // My hope is to find a way two swap extruders without
-                     // needing to wait for temperature changes.
+                     const ExtruderData& oldExtruder = mPrefs.extruderList[lastExtruder];
 
-                     //file.write("T");
-                     //file.write(QString::number(currentExtruder).toAscii());
-                     //if (mPrefs.exportComments) file.write("; Perform the extruder swap");
-                     //file.write("\n");
+                     // Start by retracting the old extruder if necessary.
+                     if (oldExtruder.retraction > 0)
+                     {
+                        file.write("G1 F");
+                        file.write(QString::number(oldExtruder.retractSpeed * 60.0).toAscii());
+                        file.write("\n");
+
+                        file.write("G1 E");
+                        file.write(QString::number(offset[E] - oldExtruder.retraction * oldExtruder.flow).toAscii());
+                        if (mPrefs.exportAbsoluteEMode)
+                        {
+                           offset[E] -= oldExtruder.retraction * oldExtruder.flow;
+                        }
+                        if (mPrefs.exportComments) file.write("; Retract the old extruder");
+                        file.write("\n");
+                     }
+
+                     // TODO: Wipe excess from the old extruder if necessary.
+
+                     // Set the old extruder to idle temperature if necessary.
+                     if (oldExtruder.idleTemp > 0.0)
+                     {
+                        file.write("M104 S");
+                        file.write(QString::number(oldExtruder.idleTemp).toAscii());
+                        if (mPrefs.exportComments) file.write("; Set the old extruder to idle temp");
+                        file.write("\n");
+                     }
+
+                     // Swap extruders.
+                     file.write("T");
+                     file.write(QString::number(currentExtruder).toAscii());
+                     if (mPrefs.exportComments) file.write("; Perform the extruder swap");
+                     file.write("\n");
+
+                     // Queue for the new nozzle to be setup after it has been positioned.
+                     setupNewExtruder = true;
 
                      file.write("G92 E0");
                      if (mPrefs.exportComments) file.write("; Reset extrusion");
                      file.write("\n");
                      offset[E] = 0.0;
+
+                     file.write("G1 F");
+                     file.write(QString::number(oldExtruder.travelSpeed * 60.0).toAscii());
+                     file.write("\n");
 
                      lastExtruder = currentExtruder;
                   }
@@ -271,11 +400,57 @@ bool GCodeSplicer::build(const QString& fileName)
                               double value = code.axisValue[axis];
                               if (axis == E)
                               {
+                                 // If we are in the middle of an extruder swap and
+                                 // we are about to extrude our first layer, insert
+                                 // our extruder initialization before we start.
+                                 // We are assuming by this point, that the nozzle
+                                 // should already be in position.
+                                 if (setupNewExtruder && value + offset[axis] > 0.0)
+                                 {
+                                    setupNewExtruder = false;
+
+                                    const ExtruderData& newExtruder = mPrefs.extruderList[currentExtruder];
+
+                                    // First set the extruder to print temperature.
+                                    if (newExtruder.printTemp > 0.0)
+                                    {
+                                       file.write("M109 S");
+                                       file.write(QString::number(newExtruder.printTemp).toAscii());
+                                       if (mPrefs.exportComments) file.write("; Set the new extruder to print temp");
+                                       file.write("\n");
+                                    }
+
+                                    // Prime the extruder if necessary.
+                                    if (newExtruder.primer * newExtruder.flow > 0 || newExtruder.retraction * newExtruder.flow > 0)
+                                    {
+                                       double primer = newExtruder.primer;
+                                       if (newExtruder.primer <= 0.0)
+                                       {
+                                          primer = newExtruder.retraction;
+                                       }
+
+                                       primer *= newExtruder.flow;
+
+                                       file.write("G1 F");
+                                       file.write(QString::number(newExtruder.retractSpeed * 60.0).toAscii());
+                                       file.write("\n");
+
+                                       file.write("G1 E");
+                                       file.write(QString::number(offset[E] + primer).toAscii());
+                                       if (mPrefs.exportAbsoluteEMode)
+                                       {
+                                          offset[E] += primer;
+                                       }
+                                       if (mPrefs.exportComments) file.write("; Prime the new extruder");
+                                       file.write("\n");
+                                    }
+                                 }
+
                                  // Offset the extrusion value by our extruders flow ratio.
                                  value *= mPrefs.extruderList[currentExtruder].flow;
                               }
                               value += offset[axis];
-                              if (axis == E)
+                              if (axis == E && mPrefs.exportAbsoluteEMode)
                               {
                                  offset[E] = value;
                               }
@@ -298,6 +473,12 @@ bool GCodeSplicer::build(const QString& fileName)
                            file.write(output.toAscii());
                         }
                      }
+                     // Command sto skip.
+                     else if (code.type == GCODE_HOME ||
+                        code.type == MCODE_DISABLE_STEPPERS)
+                     {
+                        continue;
+                     }
                      else
                      {
                         file.write(code.command.toAscii());
@@ -317,9 +498,40 @@ bool GCodeSplicer::build(const QString& fileName)
             currentExtruder = 0;
          }
       }
-      //layer.codes.clear();
    
       layerIndex++;
+
+      progressDialog.setValue(layerIndex);
+      if (progressDialog.wasCanceled())
+      {
+         mError = "";
+         file.close();
+         return false;
+      }
+   }
+
+   // Now cool down all of our extruders and disable motors on the printer.
+   int extruderCount = (int)mPrefs.extruderList.size();
+   for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+   {
+      const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+      file.write("T");
+      file.write(QString::number(extruderIndex).toAscii());
+      file.write("\n");
+
+      file.write("M104 S0\n");
+   }
+
+   file.write("M84");
+   if (mPrefs.exportComments) file.write("; Disable motors");
+   file.write("\n");
+
+   // Now supply the custom end code.
+   if (!mPrefs.postfixCode.isEmpty())
+   {
+      file.write(mPrefs.postfixCode.toAscii());
+      file.write("\n");
    }
 
    file.close();
@@ -437,6 +649,20 @@ const QString& GCodeSplicer::getError() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+int GCodeSplicer::getTotalLayerCount()
+{
+   int layerCount = 0;
+   double height = 0.0;
+
+   while(getNextLayer(height, height))
+   {
+      layerCount++;
+   }
+
+   return layerCount;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool GCodeSplicer::getNextLayer(double height, double& outHeight)
 {
    double lowestHeight = 0.0;
@@ -452,9 +678,9 @@ bool GCodeSplicer::getNextLayer(double height, double& outHeight)
          const LayerData* data = NULL;
          if (object->getLayerAboveHeight(data, height) && data)
          {
-            if (lowestHeight == 0.0 || lowestHeight > data->height)
+            if (lowestHeight == 0.0 || lowestHeight > data->height + object->getOffsetPos()[Z])
             {
-               lowestHeight = data->height;
+               lowestHeight = data->height + object->getOffsetPos()[Z];
             }
          }
       }

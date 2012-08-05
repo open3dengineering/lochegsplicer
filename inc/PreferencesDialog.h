@@ -63,8 +63,9 @@ public slots:
    void onBackgroundColorPressed();
 
    //// Splicing Tab.
-   void onPrefixChanged();
    void onExportImportedStartCodeChanged(int state);
+   void onPrefixChanged();
+   void onPostfixChanged();
    void onExportCommentsChanged(int state);
    void onExportAllAxesChanged(int state);
    void onPrintSkirtChanged(int state);
@@ -77,11 +78,13 @@ public slots:
    void onExtruderOffsetXChanged(double value);
    void onExtruderOffsetYChanged(double value);
    void onExtruderOffsetZChanged(double value);
-   void onExtruderFlowChanged(double value);
    void onExtruderIdleTempChanged(double value);
    void onExtruderPrintTempChanged(double value);
+   void onExtruderFlowChanged(double value);
    void onExtruderRetractChanged(double value);
    void onExtruderPrimerChanged(double value);
+   void onExtruderTravelSpeedChanged(double value);
+   void onExtruderRetractSpeedChanged(double value);
    void onExtruderColorPressed();
    void onPlatformWidthChanged(double value);
    void onPlatformHeightChanged(double value);
@@ -126,8 +129,9 @@ private:
    QPushButton*      mBackgroundColorButton;
 
    //// Splicing Tab
-   QTextEdit*        mGCodePrefixEdit;
    QCheckBox*        mExportImportedStartCodeCheckbox;
+   QTextEdit*        mGCodePrefixEdit;
+   QTextEdit*        mGCodePostfixEdit;
    QCheckBox*        mExportCommentsCheckbox;
    QCheckBox*        mExportAllAxesCheckbox;
    QCheckBox*        mPrintSkirtCheckbox;
@@ -145,6 +149,8 @@ private:
    QDoubleSpinBox*   mExtruderPrintTempSpin;
    QDoubleSpinBox*   mExtruderRetractSpin;
    QDoubleSpinBox*   mExtruderPrimerSpin;
+   QDoubleSpinBox*   mExtruderTravelSpeedSpin;
+   QDoubleSpinBox*   mExtruderRetractSpeedSpin;
    QPushButton*      mExtruderColorButton;
    QDoubleSpinBox*   mPlatformWidthSpin;
    QDoubleSpinBox*   mPlatformHeightSpin;

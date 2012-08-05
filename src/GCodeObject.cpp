@@ -414,7 +414,7 @@ bool GCodeObject::loadFile(const QString &fileName, QWidget* parent)
             // We should not find any extruder change commands as we are assuming
             // all the gcode in any given file are for a single extruder.
             // We are unequipped to deal with this case so we must fail the load.
-            mError = "Import does not support gcode files that already contain extruder changes.";
+            mError = "Import does not support gcode files that already contain extruder\nchange commands.  I hope to support this in the near future.";
             return false;
          }
       }

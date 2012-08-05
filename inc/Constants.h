@@ -32,6 +32,8 @@ class GCodeObject;
 const static QString COMPANY_NAME = "Lochemage";
 const static QString APPLICATION_NAME = "LocheGSplicer";
 
+const static QString VERSION = "Beta";
+
 /**
  * Settings Key names.
  */
@@ -215,11 +217,13 @@ struct ExtruderData
          offset[axis] = 0.0;
       }
 
+      idleTemp = 220.0;
+      printTemp = 220.0;
       flow = 1.0;
-      idleTemp = 0.0;
-      printTemp = 0.0;
       retraction = 3.0;
       primer = 3.0;
+      travelSpeed = 30.0;
+      retractSpeed = 30.0;
       color = Qt::white;
    }
 
@@ -229,20 +233,24 @@ struct ExtruderData
       offset[Y] = yOffset;
       offset[Z] = zOffset;
 
+      idleTemp = 220.0;
+      printTemp = 220.0;
       flow = flowRate;
-      idleTemp = 0.0;
-      printTemp = 0.0;
       retraction = 3.0;
       primer = 3.0;
+      travelSpeed = 30.0;
+      retractSpeed = 30.0;
       color = col;
    }
 
    double offset[AXIS_NUM_NO_E];
-   double flow;
    double idleTemp;
    double printTemp;
+   double flow;
    double retraction;
    double primer;
+   double travelSpeed;
+   double retractSpeed;
    QColor color;
 };
 
@@ -321,8 +329,9 @@ struct PreferenceData
       layerSkipSize = 0;
 
       // Splicing Properties
-      customPrefixCode.clear();
       exportImportedStartCode = true;
+      prefixCode.clear();
+      postfixCode.clear();
       exportComments = true;
       exportAllAxes = false;
       printSkirt = true;
@@ -349,8 +358,9 @@ struct PreferenceData
    int layerSkipSize;
 
    // Splicing properties.
-   QString customPrefixCode;
    bool exportImportedStartCode;
+   QString prefixCode;
+   QString postfixCode;
    bool exportComments;
    bool exportAllAxes;
    bool printSkirt;

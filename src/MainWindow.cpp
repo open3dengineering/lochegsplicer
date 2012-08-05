@@ -184,7 +184,7 @@ void MainWindow::onAddPressed()
          if (!newObject->getError().isEmpty())
          {
             // Failed to load the file.
-            QString errorStr = "Failed to load file \'" + fileName + "\' with error: " + newObject->getError();
+            QString errorStr = "Failed to load file \'" + fileInfo.fileName() + "\' with error:\n\n" + newObject->getError();
             QMessageBox::critical(this, "Failure!", errorStr, QMessageBox::Ok, QMessageBox::NoButton);
          }
          delete newObject;
@@ -349,9 +349,6 @@ void MainWindow::onPlaterZPosChanged(double pos)
 ////////////////////////////////////////////////////////////////////////////////
 void MainWindow::onSplicePressed()
 {
-   QMessageBox::information(this, "Splice!", "Not implemented yet.", QMessageBox::Ok);
-   return;
-
    QSettings settings(COMPANY_NAME, APPLICATION_NAME);
    QString lastDir = settings.value(LAST_EXPORT_FOLDER, "").toString();
    lastDir += "\\Spliced";
@@ -373,11 +370,14 @@ void MainWindow::onSplicePressed()
          builder.addObject(mObjectList[index]);
       }
 
-      if (!builder.build(fileName))
+      if (!builder.build(fileName, this))
       {
          // Failed to load the file.
-         QString errorStr = "Failed to splice file \'" + fileName + "\' with error: " + builder.getError();
-         QMessageBox::critical(this, "Failure!", errorStr, QMessageBox::Ok, QMessageBox::NoButton);
+         if (!builder.getError().isEmpty())
+         {
+            QString errorStr = "Failed to splice file \'" + fileInfo.fileName() + "\' with error:\n\n" + builder.getError();
+            QMessageBox::critical(this, "Failure!", errorStr, QMessageBox::Ok, QMessageBox::NoButton);
+         }
       }
       else
       {
@@ -418,7 +418,7 @@ void MainWindow::onDebugExportLayerDataPressed()
       if (!builder.debugBuildLayerData(fileName))
       {
          // Failed to load the file.
-         QString errorStr = "Failed to export file \'" + fileName + "\' with error: " + builder.getError();
+         QString errorStr = "Failed to export file \'" + fileInfo.fileName() + "\' with error:\n\n" + builder.getError();
          QMessageBox::critical(this, "Failure!", errorStr, QMessageBox::Ok, QMessageBox::NoButton);
       }
       else

@@ -44,7 +44,7 @@ public:
     *
     * @param[in]  fileName  The name of the file to save.
     */
-   bool build(const QString& fileName);
+   bool build(const QString& fileName, QWidget* parent);
 
 #ifdef BUILD_DEBUG_CONTROLS
    /**
@@ -58,6 +58,11 @@ public:
 protected:
 
 private:
+
+   /**
+    * Retrieves the total layer count.
+    */
+   int getTotalLayerCount();
 
    /**
     * Retrieves whether there is a next layer above the given height.
