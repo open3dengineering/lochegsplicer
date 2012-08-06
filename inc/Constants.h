@@ -332,6 +332,7 @@ struct PreferenceData
       exportImportedStartCode = true;
       prefixCode.clear();
       postfixCode.clear();
+      swapCode.clear();
       exportComments = true;
       exportAllAxes = false;
       printSkirt = true;
@@ -361,6 +362,7 @@ struct PreferenceData
    bool exportImportedStartCode;
    QString prefixCode;
    QString postfixCode;
+   QString swapCode;
    bool exportComments;
    bool exportAllAxes;
    bool printSkirt;

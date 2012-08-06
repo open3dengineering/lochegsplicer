@@ -123,6 +123,10 @@ void PreferencesDialog::onSaveConfigPressed()
       file.write(mPrefs.postfixCode.toAscii());
       file.write("\n");
 
+      file.write("SwapCode: ");
+      file.write(mPrefs.swapCode.toAscii());
+      file.write("\n");
+
       file.write("ExportComments: ");
       file.write(mPrefs.exportComments? "TRUE": "FALSE");
       file.write("\n");
@@ -302,6 +306,10 @@ void PreferencesDialog::onLoadConfigPressed()
          {
             mPrefs.postfixCode = parser.codeValue();
          }
+         else if (parser.codeSeen("SwapCode:"))
+         {
+            mPrefs.swapCode = parser.codeValue();
+         }
          else if (parser.codeSeen("ExportComments:"))
          {
             mPrefs.exportComments = parser.codeValue() == "TRUE";
@@ -476,6 +484,12 @@ void PreferencesDialog::onPrefixChanged()
 void PreferencesDialog::onPostfixChanged()
 {
    mPrefs.postfixCode = mGCodePostfixEdit->toPlainText();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PreferencesDialog::onSwapChanged()
+{
+   mPrefs.swapCode = mGCodeSwapEdit->toPlainText();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -891,13 +905,20 @@ void PreferencesDialog::setupUI()
       mGCodePostfixEdit->setToolTip("GCode that will be appended to the end of the spliced output file.");
       gcodeLayout->addWidget(mGCodePostfixEdit, 2, 1, 1, 1);
 
+      QLabel* swapLabel = new QLabel("GCode Extruder Swap:");
+      gcodeLayout->addWidget(swapLabel, 3, 0, 1, 2);
+
+      mGCodeSwapEdit = new QTextEdit();
+      mGCodeSwapEdit->setToolTip("GCode that will be appended to the end of every extruder swap.");
+      gcodeLayout->addWidget(mGCodeSwapEdit, 4, 0, 1, 2);
+
       // Export comments and all axes.
       mExportCommentsCheckbox = new QCheckBox("Export Comments");
       mExportCommentsCheckbox->setToolTip("This will include comments in the spliced output file.");
       mExportAllAxesCheckbox = new QCheckBox("Export All Axes");
       mExportAllAxesCheckbox->setToolTip("This option will include gcode for all axes even if they are unchanged.");
-      gcodeLayout->addWidget(mExportCommentsCheckbox, 3, 0, 1, 1);
-      gcodeLayout->addWidget(mExportAllAxesCheckbox, 3, 1, 1, 1);
+      gcodeLayout->addWidget(mExportCommentsCheckbox, 5, 0, 1, 1);
+      gcodeLayout->addWidget(mExportAllAxesCheckbox, 5, 1, 1, 1);
 
       // Skirt.
       QGroupBox* skirtGroup = new QGroupBox("Skirt");
@@ -1191,6 +1212,7 @@ void PreferencesDialog::setupConnections()
    connect(mExportImportedStartCodeCheckbox, SIGNAL(stateChanged(int)),          this, SLOT(onExportImportedStartCodeChanged(int)));
    connect(mGCodePrefixEdit,                 SIGNAL(textChanged()),              this, SLOT(onPrefixChanged()));
    connect(mGCodePostfixEdit,                SIGNAL(textChanged()),              this, SLOT(onPostfixChanged()));
+   connect(mGCodeSwapEdit,                   SIGNAL(textChanged()),              this, SLOT(onSwapChanged()));
    connect(mExportCommentsCheckbox,          SIGNAL(stateChanged(int)),          this, SLOT(onExportCommentsChanged(int)));
    connect(mExportAllAxesCheckbox,           SIGNAL(stateChanged(int)),          this, SLOT(onExportAllAxesChanged(int)));
    connect(mPrintSkirtCheckbox,              SIGNAL(stateChanged(int)),          this, SLOT(onPrintSkirtChanged(int)));
@@ -1240,6 +1262,7 @@ void PreferencesDialog::updateUI()
    mExportImportedStartCodeCheckbox->setChecked(mPrefs.exportImportedStartCode);
    mGCodePrefixEdit->setText(mPrefs.prefixCode);
    mGCodePostfixEdit->setText(mPrefs.postfixCode);
+   mGCodeSwapEdit->setText(mPrefs.swapCode);
    mExportCommentsCheckbox->setChecked(mPrefs.exportComments);
    mExportAllAxesCheckbox->setChecked(mPrefs.exportAllAxes);
    mPrintSkirtCheckbox->setChecked(mPrefs.printSkirt);
@@ -1339,6 +1362,7 @@ void PreferencesDialog::storeLastPreferences()
       settings.setValue("ExportImportedStartCode", mPrefs.exportImportedStartCode);
       settings.setValue("CustomPrefixCode", mPrefs.prefixCode);
       settings.setValue("CustomPostfixCode", mPrefs.postfixCode);
+      settings.setValue("CustomSwapCode", mPrefs.swapCode);
       settings.setValue("ExportComments", mPrefs.exportComments);
       settings.setValue("ExportAllAxes", mPrefs.exportAllAxes);
       settings.setValue("PrintSkirt", mPrefs.printSkirt);
@@ -1395,6 +1419,7 @@ bool PreferencesDialog::restoreLastPreferences(PreferenceData& prefs)
       prefs.exportImportedStartCode = settings.value("ExportImportedStartCode", defaults.exportImportedStartCode).toBool();
       prefs.prefixCode = settings.value("CustomPrefixCode", defaults.prefixCode).toString();
       prefs.postfixCode = settings.value("CustomPostfixCode", defaults.postfixCode).toString();
+      prefs.swapCode = settings.value("CustomSwapCode", defaults.swapCode).toString();
       prefs.exportComments = settings.value("ExportComments", defaults.exportComments).toBool();
       prefs.exportAllAxes = settings.value("ExportAllAxes", defaults.exportAllAxes).toBool();
       prefs.printSkirt = settings.value("PrintSkirt", defaults.printSkirt).toBool();

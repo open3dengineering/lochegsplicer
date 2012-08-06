@@ -66,6 +66,7 @@ public slots:
    void onExportImportedStartCodeChanged(int state);
    void onPrefixChanged();
    void onPostfixChanged();
+   void onSwapChanged();
    void onExportCommentsChanged(int state);
    void onExportAllAxesChanged(int state);
    void onPrintSkirtChanged(int state);
@@ -132,6 +133,7 @@ private:
    QCheckBox*        mExportImportedStartCodeCheckbox;
    QTextEdit*        mGCodePrefixEdit;
    QTextEdit*        mGCodePostfixEdit;
+   QTextEdit*        mGCodeSwapEdit;
    QCheckBox*        mExportCommentsCheckbox;
    QCheckBox*        mExportAllAxesCheckbox;
    QCheckBox*        mPrintSkirtCheckbox;

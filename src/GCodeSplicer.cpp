@@ -96,81 +96,17 @@ bool GCodeSplicer::build(const QString& fileName, QWidget* parent)
    progressDialog.setFixedSize(progressDialog.sizeHint());
    progressDialog.show();
 
-   file.write("; Spliced using LocheGSplicer ");
-   file.write(VERSION.toAscii());
-   file.write("\n");
-
-   // Start by assembling the initialization code.  Start with
-   // the header code from the first object, then include our
-   // custom header code, and last include our final settings.
-   const GCodeObject* object = mObjectList[0];
-   if (object && object->getLayerCount())
+   if (!buildHeader(file))
    {
-      const std::vector<GCodeCommand>& header = object->getLayer(0).codes;
-      int count = (int)header.size();
-      for (int index = 0; index < count; ++index)
-      {
-         const GCodeCommand& code = header[index];
-
-         // We only care about certain codes.
-         if (code.type == GCODE_COMMENT ||
-             code.type == GCODE_DWELL ||
-             code.type == GCODE_HOME ||
-             code.type == MCODE_FAN_ENABLE ||
-             code.type == MCODE_FAN_DISABLE)
-         {
-            file.write(code.command.toAscii());
-
-            if (mPrefs.exportComments && !code.comment.isEmpty())
-            {
-               file.write(code.comment.toAscii());
-            }
-            file.write("\n");
-         }
-      }
+      mError = "Failed to build header codes for splice.";
+      return false;
    }
-
-   if (!mPrefs.prefixCode.isEmpty())
-   {
-      file.write(mPrefs.prefixCode.toAscii());
-      file.write("\n");
-   }
-
-   file.write("G21");
-   if (mPrefs.exportComments) file.write("; Set units to millimeters");
-   file.write("\n");
-
-   // Now append our constant header codes.
-   if (mPrefs.exportAbsoluteMode)
-   {
-      file.write("G90");
-      if (mPrefs.exportComments) file.write("; Use absolute coordinates");
-   }
-   else
-   {
-      file.write("G91");
-      if (mPrefs.exportComments) file.write("; Use relative coordinates");
-   }
-   file.write("\n");
-
-   if (mPrefs.exportAbsoluteEMode)
-   {
-      file.write("M82");
-      if (mPrefs.exportComments) file.write("; Use absolute E coordinates");
-   }
-   else
-   {
-      file.write("M83");
-      if (mPrefs.exportComments) file.write("; Use relative E coordinates");
-   }
-   file.write("\n");
 
    double currentPos[AXIS_NUM] = {0.0,};
 
    double currentLayerHeight = 0.0;
    int lastExtruder = 0;
    int layerIndex = 1;
-   bool setupNewExtruder = false;
    bool initExtruders = true;
 
    progressDialog.setMaximum(getTotalLayerCount());
@@ -214,89 +150,11 @@ bool GCodeSplicer::build(const QString& fileName, QWidget* parent)
                   initExtruders = false;
                   currentExtruder = object->getExtruder();
 
-                  // Set all extruders to print temp first so we can
-                  // retract them.  Then put the all of them to idle
-                  // except the one we are going to print with.
-                  if (mPrefs.exportComments)
+                  if (!buildExtruderInit(file, currentExtruder))
                   {
-                     file.write("; Do some initialization on our extruders by retracting\n");
-                     file.write("; our idle ones and setting our initial temperatures\n");
+                     mError = "Failed to build extruder initialization code.";
+                     return false;
                   }
-
-                  // Start with a non-waiting temp change so we can quickly
-                  // apply this to all of the extruders at once.
-                  int extruderCount = (int)mPrefs.extruderList.size();
-                  for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
-                  {
-                     const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
-
-                     file.write("T");
-                     file.write(QString::number(extruderIndex).toAscii());
-                     file.write("\n");
-
-                     file.write("M104 S");
-                     file.write(QString::number(extruder.printTemp).toAscii());
-                     file.write("\n");
-                  }
-
-                  // Once all of the extruders are set to heat up, let's wait
-                  // for them to finish heating up.
-                  for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
-                  {
-                     const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
-
-                     file.write("T");
-                     file.write(QString::number(extruderIndex).toAscii());
-                     file.write("\n");
-
-                     file.write("M109 S");
-                     file.write(QString::number(extruder.printTemp).toAscii());
-                     file.write("\n");
-                  }
-
-                  // Once the extruders reach their temperatures, we can
-                  // retract them.
-                  for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
-                  {
-                     const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
-
-                     if (extruderIndex != currentExtruder)
-                     {
-                        file.write("T");
-                        file.write(QString::number(extruderIndex).toAscii());
-                        file.write("\n");
-
-                        file.write("G1 F");
-                        file.write(QString::number(extruder.retractSpeed * 60.0).toAscii());
-                        file.write("\n");
-
-                        file.write("G1 E");
-                        file.write(QString::number(-extruder.retraction * extruder.flow).toAscii());
-                        file.write("\n");
-                     }
-                  }
-
-                  // Return all idle extruders to their idle temperatures.
-                  for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
-                  {
-                     const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
-
-                     if (extruderIndex != currentExtruder)
-                     {
-                        file.write("T");
-                        file.write(QString::number(extruderIndex).toAscii());
-                        file.write("\n");
-
-                        file.write("M104 S");
-                        file.write(QString::number(extruder.idleTemp).toAscii());
-                        file.write("\n");
-                     }
-                  }
-
-                  // Now set it to our first extruder and begin printing.
-                  file.write("T");
-                  file.write(QString::number(currentExtruder).toAscii());
-                  file.write("\n");
                }
                std::vector<GCodeCommand> layer;
                object->getLayerAtHeight(layer, currentLayerHeight);
@@ -307,62 +165,11 @@ bool GCodeSplicer::build(const QString& fileName, QWidget* parent)
                   // Begin by processing the extruder change if necessary.
                   if (lastExtruder != currentExtruder)
                   {
-                     if (mPrefs.exportComments)
+                     if (!buildExtruderSwap(file, lastExtruder, currentExtruder, offset[E]))
                      {
-                        file.write("; ++++++++++++++++++++++++++++++++++++++\n; Swap from extruder ");
-                        file.write(QString::number(lastExtruder).toAscii());
-                        file.write(" to ");
-                        file.write(QString::number(currentExtruder).toAscii());
-                        file.write("\n; ++++++++++++++++++++++++++++++++++++++\n");
+                        mError = "Failed to build extruder swap code.";
+                        return false;
                      }
-
-                     const ExtruderData& oldExtruder = mPrefs.extruderList[lastExtruder];
-
-                     // Start by retracting the old extruder if necessary.
-                     if (oldExtruder.retraction > 0)
-                     {
-                        file.write("G1 F");
-                        file.write(QString::number(oldExtruder.retractSpeed * 60.0).toAscii());
-                        file.write("\n");
-
-                        file.write("G1 E");
-                        file.write(QString::number(offset[E] - oldExtruder.retraction * oldExtruder.flow).toAscii());
-                        if (mPrefs.exportAbsoluteEMode)
-                        {
-                           offset[E] -= oldExtruder.retraction * oldExtruder.flow;
-                        }
-                        if (mPrefs.exportComments) file.write("; Retract the old extruder");
-                        file.write("\n");
-                     }
-
-                     // TODO: Wipe excess from the old extruder if necessary.
-
-                     // Set the old extruder to idle temperature if necessary.
-                     if (oldExtruder.idleTemp > 0.0)
-                     {
-                        file.write("M104 S");
-                        file.write(QString::number(oldExtruder.idleTemp).toAscii());
-                        if (mPrefs.exportComments) file.write("; Set the old extruder to idle temp");
-                        file.write("\n");
-                     }
-
-                     // Swap extruders.
-                     file.write("T");
-                     file.write(QString::number(currentExtruder).toAscii());
-                     if (mPrefs.exportComments) file.write("; Perform the extruder swap");
-                     file.write("\n");
-
-                     // Queue for the new nozzle to be setup after it has been positioned.
-                     setupNewExtruder = true;
-
-                     file.write("G92 E0");
-                     if (mPrefs.exportComments) file.write("; Reset extrusion");
-                     file.write("\n");
-                     offset[E] = 0.0;
-
-                     file.write("G1 F");
-                     file.write(QString::number(oldExtruder.travelSpeed * 60.0).toAscii());
-                     file.write("\n");
 
                      lastExtruder = currentExtruder;
                   }
@@ -382,98 +189,9 @@ bool GCodeSplicer::build(const QString& fileName, QWidget* parent)
                      if (code.type == GCODE_EXTRUDER_MOVEMENT0 ||
                          code.type == GCODE_EXTRUDER_MOVEMENT1)
                      {
-                        QString output;
-                        if (code.type == GCODE_EXTRUDER_MOVEMENT0) output = "G0 ";
-                        else                                       output = "G1 ";
-
-                        bool hasChanged = false;
-                        for (int axis = 0; axis < AXIS_NUM; ++axis)
-                        {
-                           // Only export this axis if it has changed, or if we
-                           // have the preference to re-export duplicate axes.
-                           if (mPrefs.exportAllAxes ||
-                              (axis != E && code.axisValue[axis] != currentPos[axis]) ||
-                              (axis == E && code.axisValue[axis] != 0.0))
-                           {
-                              output += QString(AXIS_NAME[axis]).toAscii();
-
-                              double value = code.axisValue[axis];
-                              if (axis == E)
-                              {
-                                 // If we are in the middle of an extruder swap and
-                                 // we are about to extrude our first layer, insert
-                                 // our extruder initialization before we start.
-                                 // We are assuming by this point, that the nozzle
-                                 // should already be in position.
-                                 if (setupNewExtruder && value + offset[axis] > 0.0)
-                                 {
-                                    setupNewExtruder = false;
-
-                                    const ExtruderData& newExtruder = mPrefs.extruderList[currentExtruder];
-
-                                    // First set the extruder to print temperature.
-                                    if (newExtruder.printTemp > 0.0)
-                                    {
-                                       file.write("M109 S");
-                                       file.write(QString::number(newExtruder.printTemp).toAscii());
-                                       if (mPrefs.exportComments) file.write("; Set the new extruder to print temp");
-                                       file.write("\n");
-                                    }
-
-                                    // Prime the extruder if necessary.
-                                    if (newExtruder.primer * newExtruder.flow > 0 || newExtruder.retraction * newExtruder.flow > 0)
-                                    {
-                                       double primer = newExtruder.primer;
-                                       if (newExtruder.primer <= 0.0)
-                                       {
-                                          primer = newExtruder.retraction;
-                                       }
-
-                                       primer *= newExtruder.flow;
-
-                                       file.write("G1 F");
-                                       file.write(QString::number(newExtruder.retractSpeed * 60.0).toAscii());
-                                       file.write("\n");
-
-                                       file.write("G1 E");
-                                       file.write(QString::number(offset[E] + primer).toAscii());
-                                       if (mPrefs.exportAbsoluteEMode)
-                                       {
-                                          offset[E] += primer;
-                                       }
-                                       if (mPrefs.exportComments) file.write("; Prime the new extruder");
-                                       file.write("\n");
-                                    }
-                                 }
-
-                                 // Offset the extrusion value by our extruders flow ratio.
-                                 value *= mPrefs.extruderList[currentExtruder].flow;
-                              }
-                              value += offset[axis];
-                              if (axis == E && mPrefs.exportAbsoluteEMode)
-                              {
-                                 offset[E] = value;
-                              }
-
-                              output += QString::number(value).toAscii() + " ";
-                              hasChanged = true;
-                           }
-
-                           currentPos[axis] = code.axisValue[axis];
-                        }
-
-                        if (code.hasF)
-                        {
-                           output += "F" + QString::number(code.f).toAscii();
-                           hasChanged = true;
-                        }
-
-                        if (hasChanged)
-                        {
-                           file.write(output.toAscii());
-                        }
+                        buildExtruderMovement(file, code, currentExtruder, offset, currentPos);
                      }
-                     // Command sto skip.
+                     // Commands to skip.
                      else if (code.type == GCODE_HOME ||
                         code.type == MCODE_DISABLE_STEPPERS)
                      {
@@ -535,6 +253,321 @@ bool GCodeSplicer::build(const QString& fileName, QWidget* parent)
    }
 
    file.close();
+
+   return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool GCodeSplicer::buildHeader(QFile& file)
+{
+   file.write("; Spliced using LocheGSplicer ");
+   file.write(VERSION.toAscii());
+   file.write("\n");
+
+   // Start by assembling the initialization code.  Start with
+   // the header code from the first object, then include our
+   // custom header code, and last include our final settings.
+   const GCodeObject* object = mObjectList[0];
+   if (object && object->getLayerCount())
+   {
+      const std::vector<GCodeCommand>& header = object->getLayer(0).codes;
+      int count = (int)header.size();
+      for (int index = 0; index < count; ++index)
+      {
+         const GCodeCommand& code = header[index];
+
+         // We only care about certain codes.
+         if (code.type == GCODE_COMMENT ||
+            code.type == GCODE_DWELL ||
+            code.type == GCODE_HOME ||
+            code.type == MCODE_FAN_ENABLE ||
+            code.type == MCODE_FAN_DISABLE)
+         {
+            file.write(code.command.toAscii());
+
+            if (mPrefs.exportComments && !code.comment.isEmpty())
+            {
+               file.write(code.comment.toAscii());
+            }
+            file.write("\n");
+         }
+      }
+   }
+
+   if (!mPrefs.prefixCode.isEmpty())
+   {
+      file.write(mPrefs.prefixCode.toAscii());
+      file.write("\n");
+   }
+
+   file.write("G21");
+   if (mPrefs.exportComments) file.write("; Set units to millimeters");
+   file.write("\n");
+
+   // Now append our constant header codes.
+   if (mPrefs.exportAbsoluteMode)
+   {
+      file.write("G90");
+      if (mPrefs.exportComments) file.write("; Use absolute coordinates");
+   }
+   else
+   {
+      file.write("G91");
+      if (mPrefs.exportComments) file.write("; Use relative coordinates");
+   }
+   file.write("\n");
+
+   if (mPrefs.exportAbsoluteEMode)
+   {
+      file.write("M82");
+      if (mPrefs.exportComments) file.write("; Use absolute E coordinates");
+   }
+   else
+   {
+      file.write("M83");
+      if (mPrefs.exportComments) file.write("; Use relative E coordinates");
+   }
+   file.write("\n");
+   return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool GCodeSplicer::buildExtruderInit(QFile& file, int currentExtruder)
+{
+   // Set all extruders to print temp first so we can
+   // retract them.  Then put the all of them to idle
+   // except the one we are going to print with.
+   if (mPrefs.exportComments)
+   {
+      file.write("; Do some initialization on our extruders by retracting\n");
+      file.write("; our idle ones and setting our initial temperatures\n");
+   }
+
+   // Start with a non-waiting temp change so we can quickly
+   // apply this to all of the extruders at once.
+   int extruderCount = (int)mPrefs.extruderList.size();
+   for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+   {
+      const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+      file.write("T");
+      file.write(QString::number(extruderIndex).toAscii());
+      file.write("\n");
+
+      file.write("M104 S");
+      file.write(QString::number(extruder.printTemp).toAscii());
+      file.write("\n");
+   }
+
+   // Once all of the extruders are set to heat up, let's wait
+   // for them to finish heating up.
+   for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+   {
+      const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+      file.write("T");
+      file.write(QString::number(extruderIndex).toAscii());
+      file.write("\n");
+
+      file.write("M109 S");
+      file.write(QString::number(extruder.printTemp).toAscii());
+      file.write("\n");
+   }
+
+   // Once the extruders reach their temperatures, we can
+   // retract them.
+   for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+   {
+      const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+      if (extruderIndex != currentExtruder)
+      {
+         file.write("T");
+         file.write(QString::number(extruderIndex).toAscii());
+         file.write("\n");
+
+         file.write("G1 F");
+         file.write(QString::number(extruder.retractSpeed * 60.0).toAscii());
+         file.write("\n");
+
+         file.write("G1 E");
+         file.write(QString::number(-extruder.retraction * extruder.flow).toAscii());
+         file.write("\n");
+      }
+   }
+
+   // Return all idle extruders to their idle temperatures.
+   for (int extruderIndex = 0; extruderIndex < extruderCount; ++extruderIndex)
+   {
+      const ExtruderData& extruder = mPrefs.extruderList[extruderIndex];
+
+      if (extruderIndex != currentExtruder &&
+         extruder.idleTemp != extruder.printTemp)
+      {
+         file.write("T");
+         file.write(QString::number(extruderIndex).toAscii());
+         file.write("\n");
+
+         file.write("M104 S");
+         file.write(QString::number(extruder.idleTemp).toAscii());
+         file.write("\n");
+      }
+   }
+
+   // Now set it to our first extruder and begin printing.
+   file.write("T");
+   file.write(QString::number(currentExtruder).toAscii());
+   file.write("\n");
+   return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool GCodeSplicer::buildExtruderSwap(QFile& file, int lastExtruder, int currentExtruder, double& extrusionValue)
+{
+   if (mPrefs.exportComments)
+   {
+      file.write("; ++++++++++++++++++++++++++++++++++++++\n; Swap from extruder ");
+      file.write(QString::number(lastExtruder).toAscii());
+      file.write(" to ");
+      file.write(QString::number(currentExtruder).toAscii());
+      file.write("\n; ++++++++++++++++++++++++++++++++++++++\n");
+   }
+
+   const ExtruderData& oldExtruder = mPrefs.extruderList[lastExtruder];
+   const ExtruderData& newExtruder = mPrefs.extruderList[currentExtruder];
+
+   // Start by retracting the old extruder if necessary.
+   if (oldExtruder.retraction > 0)
+   {
+      file.write("G1 F");
+      file.write(QString::number(oldExtruder.retractSpeed * 60.0).toAscii());
+      file.write("\n");
+
+      file.write("G1 E");
+      file.write(QString::number(extrusionValue - oldExtruder.retraction * oldExtruder.flow).toAscii());
+      if (mPrefs.exportAbsoluteEMode)
+      {
+         extrusionValue -= oldExtruder.retraction * oldExtruder.flow;
+      }
+      if (mPrefs.exportComments) file.write("; Retract the old extruder");
+      file.write("\n");
+   }
+
+   // TODO: Wipe excess from the old extruder if necessary.
+
+   // Set the old extruder to idle temperature if necessary.
+   if (oldExtruder.idleTemp > 0.0 && oldExtruder.idleTemp != oldExtruder.printTemp)
+   {
+      file.write("M104 S");
+      file.write(QString::number(oldExtruder.idleTemp).toAscii());
+      if (mPrefs.exportComments) file.write("; Set the old extruder to idle temp");
+      file.write("\n");
+   }
+
+   // Swap extruders.
+   file.write("T");
+   file.write(QString::number(currentExtruder).toAscii());
+   if (mPrefs.exportComments) file.write("; Perform the extruder swap");
+   file.write("\n");
+
+   // Set the new extruder to print temperature if necessary.
+   if (newExtruder.printTemp > 0.0 && newExtruder.idleTemp != newExtruder.printTemp)
+   {
+      file.write("M109 S");
+      file.write(QString::number(newExtruder.printTemp).toAscii());
+      if (mPrefs.exportComments) file.write("; Set the new extruder to print temp");
+      file.write("\n");
+   }
+
+   // Prime the extruder if necessary.
+   if (newExtruder.primer * newExtruder.flow > 0 || newExtruder.retraction * newExtruder.flow > 0)
+   {
+      double primer = newExtruder.primer;
+      if (newExtruder.primer <= 0.0)
+      {
+         primer = newExtruder.retraction;
+      }
+
+      primer *= newExtruder.flow;
+
+      file.write("G1 F");
+      file.write(QString::number(newExtruder.retractSpeed * 60.0).toAscii());
+      file.write("\n");
+
+      file.write("G1 E");
+      file.write(QString::number(extrusionValue + primer).toAscii());
+      if (mPrefs.exportAbsoluteEMode)
+      {
+         extrusionValue += primer;
+      }
+      if (mPrefs.exportComments) file.write("; Prime the new extruder");
+      file.write("\n");
+   }
+
+   file.write("G92 E0");
+   if (mPrefs.exportComments) file.write("; Reset extrusion");
+   file.write("\n");
+   extrusionValue = 0.0;
+
+   file.write("G1 F");
+   file.write(QString::number(oldExtruder.travelSpeed * 60.0).toAscii());
+   file.write("\n");
+
+   if (!mPrefs.swapCode.isEmpty())
+   {
+      file.write(mPrefs.swapCode.toAscii());
+      file.write("\n");
+   }
+   return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool GCodeSplicer::buildExtruderMovement(QFile& file, const GCodeCommand& code, int currentExtruder, double* offset, double* currentPos)
+{
+   QString output;
+   if (code.type == GCODE_EXTRUDER_MOVEMENT0) output = "G0 ";
+   else                                       output = "G1 ";
+
+   bool hasChanged = false;
+   for (int axis = 0; axis < AXIS_NUM; ++axis)
+   {
+      // Only export this axis if it has changed, or if we
+      // have the preference to re-export duplicate axes.
+      if (mPrefs.exportAllAxes ||
+         (axis != E && code.axisValue[axis] != currentPos[axis]) ||
+         (axis == E && code.axisValue[axis] != 0.0))
+      {
+         output += QString(AXIS_NAME[axis]).toAscii();
+
+         double value = code.axisValue[axis];
+         if (axis == E)
+         {
+            // Offset the extrusion value by our extruders flow ratio.
+            value *= mPrefs.extruderList[currentExtruder].flow;
+         }
+         value += offset[axis];
+         if (axis == E && mPrefs.exportAbsoluteEMode)
+         {
+            offset[E] = value;
+         }
+
+         output += QString::number(value).toAscii() + " ";
+         hasChanged = true;
+      }
+
+      currentPos[axis] = code.axisValue[axis];
+   }
+
+   if (code.hasF)
+   {
+      output += "F" + QString::number(code.f).toAscii();
+      hasChanged = true;
+   }
+
+   if (hasChanged)
+   {
+      file.write(output.toAscii());
+   }
 
    return true;
 }

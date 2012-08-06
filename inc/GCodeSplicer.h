@@ -27,6 +27,7 @@
 
 
 class GCodeObject;
+class QFile;
 
 class GCodeSplicer
 {
@@ -45,6 +46,14 @@ public:
     * @param[in]  fileName  The name of the file to save.
     */
    bool build(const QString& fileName, QWidget* parent);
+
+   /**
+    * Various build helper methods to keep the code clean.
+    */
+   bool buildHeader(QFile& file);
+   bool buildExtruderInit(QFile& file, int currentExtruder);
+   bool buildExtruderSwap(QFile& file, int lastExtruder, int currentExtruder, double& extrusionValue);
+   bool buildExtruderMovement(QFile& file, const GCodeCommand& code, int currentExtruder, double* offset, double* currentPos);
 
 #ifdef BUILD_DEBUG_CONTROLS
    /**
