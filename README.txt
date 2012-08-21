@@ -1,3 +1,11 @@
+Sorry guys, production on this project has slowed to a crawl.  I'm just not
+getting very much interest in it, not many people are actually using a dual
+extruder machine.  Until people begin to express their interest in this
+project, I have gone on to other things.
+
+Also, if there are any particular things from this project that you'd like
+to use in your own then feel free, I hope it proves some use to you!
+
 Help Wanted:
 ------------
 
