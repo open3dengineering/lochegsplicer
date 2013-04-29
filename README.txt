@@ -43,7 +43,7 @@ used as a high-res gcode visualizer as well as a single extrusion plater.
 
 Building from Source:
 ---------------------
-Download the source here: https://github.com/Lochemage/LocheGSplicer
+Download the source here: https://bitbucket.org/Lochemage/lochegsplicer
 
 LocheGSplicer uses CMake (http://www.cmake.org) to generate the project files.
 
