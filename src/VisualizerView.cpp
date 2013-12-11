@@ -35,6 +35,8 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
+
+#ifndef __APPLE__
 #define glCreateProgram ((PFNGLCREATEPROGRAMPROC)	wglGetProcAddress("glCreateProgram"))
 #define glCreateShader  ((PFNGLCREATESHADERPROC)	wglGetProcAddress("glCreateShader"))
 #define glShaderSource  ((PFNGLSHADERSOURCEPROC)	wglGetProcAddress("glShaderSource"))
@@ -42,6 +44,9 @@
 #define glAttachShader  ((PFNGLATTACHSHADERPROC)	wglGetProcAddress("glAttachShader"))
 #define glLinkProgram   ((PFNGLLINKPROGRAMPROC)		wglGetProcAddress("glLinkProgram"))
 #define glUseProgram    ((PFNGLUSEPROGRAMPROC)		wglGetProcAddress("glUseProgram"))
+#endif
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 VisualizerView::VisualizerView(const PreferenceData& prefs)
