@@ -108,3 +108,15 @@ TARGET_LINK_LIBRARIES( ${APP_NAME}
                        ${QT_QTOPENGL_LIBRARY}
 )
 
+set(CPACK_GENERATOR "Bundle")
+set(CPACK_PACKAGE_VERSION "005")
+set(CPACK_PACKAGE_FILE_NAME "Lochegsplicer")
+#set(CPACK_PACKAGE_ICON "")
+set(CPACK_BUNDLE_NAME "Lochegsplicer")
+#set(CPACK_BUNDLE_ICON ${CMAKE_SOURCE_DIR}/cmake/macosx/Icons.icns)
+set(CPACK_BUNDLE_ICON ${CMAKE_SOURCE_DIR}/installer/macosx/Icons.icns)
+set(CPACK_BUNDLE_PLIST ${CMAKE_SOURCE_DIR}/installer/macosx/Info.plist)
+set(CPACK_BUNDLE_STARTUP_COMMAND "bin/lochegsplicer")
+set(CPACK_PACKAGE_EXECUTABLES "lochegsplicer" "Lochegsplicer - Dual Extrusion Gcode Generator")
+
+INCLUDE(CPack)
