@@ -21,22 +21,21 @@
 #include <VisualizerView.h>
 #include <GCodeObject.h>
 
-#include <QtGui>
-#include <QtOpenGL>
-
 #include <math.h>
 #include <assert.h>
-
-#include <glext.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef GL_MULTISAMPLE
 #define GL_MULTISAMPLE  0x809D
 #endif
 
+#include <QtGui>
+#include <QtOpenGL>
+
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef __APPLE__
+#if defined(_WIN32)
+#include <glext.h>
 #define glCreateProgram ((PFNGLCREATEPROGRAMPROC)	wglGetProcAddress("glCreateProgram"))
 #define glCreateShader  ((PFNGLCREATESHADERPROC)	wglGetProcAddress("glCreateShader"))
 #define glShaderSource  ((PFNGLSHADERSOURCEPROC)	wglGetProcAddress("glShaderSource"))
@@ -44,9 +43,23 @@
 #define glAttachShader  ((PFNGLATTACHSHADERPROC)	wglGetProcAddress("glAttachShader"))
 #define glLinkProgram   ((PFNGLLINKPROGRAMPROC)		wglGetProcAddress("glLinkProgram"))
 #define glUseProgram    ((PFNGLUSEPROGRAMPROC)		wglGetProcAddress("glUseProgram"))
+#elif defined(__linux__)
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+#define glCreateProgram ((PFNGLCREATEPROGRAMPROC)	glXGetProcAddress((const GLubyte*)"glCreateProgram"))
+#define glCreateShader  ((PFNGLCREATESHADERPROC)	glXGetProcAddress((const GLubyte*)"glCreateShader"))
+#define glShaderSource  ((PFNGLSHADERSOURCEPROC)	glXGetProcAddress((const GLubyte*)"glShaderSource"))
+#define glCompileShader ((PFNGLCOMPILESHADERPROC)	glXGetProcAddress((const GLubyte*)"glCompileShader"))
+#define glAttachShader  ((PFNGLATTACHSHADERPROC)	glXGetProcAddress((const GLubyte*)"glAttachShader"))
+#define glLinkProgram   ((PFNGLLINKPROGRAMPROC)		glXGetProcAddress((const GLubyte*)"glLinkProgram"))
+#define glUseProgram    ((PFNGLUSEPROGRAMPROC)		glXGetProcAddress((const GLubyte*)"glUseProgram"))
+#elif defined(APPLE)
+#include <glext.h>
+#else
+#error("Platform not supported")
 #endif
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 VisualizerView::VisualizerView(const PreferenceData& prefs)
